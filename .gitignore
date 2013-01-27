@@ -1,0 +1,10 @@
+*.pyc
+*.swp
+*.sw?
+*.so
+*.o
+
+secondary.db
+sensorindexfile.idx
+/bsensor/*
+
