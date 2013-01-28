@@ -13,7 +13,7 @@ cdef extern from "example.h" nogil:
     void *create_context(unsigned start, unsigned n_channel, int window_width,
                          double *decays, double *levels)
     void free_context(void *context)
-    void process(void *context, double *array, char *out)
+    void process(void *context, double *array, char *out, double *diffs)
 
 cdef class Secondary:
     cdef void *context
@@ -21,8 +21,10 @@ cdef class Secondary:
     cdef int start 
     cdef int window_width
     cdef np.ndarray result
+    cdef readonly np.ndarray diffs
     cdef np.ndarray status
     cdef char *result_p
+    cdef double *diffs_p
     cdef list decs
     cdef list levs
 
@@ -38,6 +40,7 @@ cdef class Secondary:
             free_context(self.context)
             self.context = NULL
         if not self.context:
+
             decs_arr = np.array(decs, dtype=FLOAT)
             levs_arr = np.array(levs, dtype=FLOAT)
             self.context = create_context(start, n_channel, window_width,
@@ -49,11 +52,12 @@ cdef class Secondary:
             self.decs = decs[:]
             self.levs = levs[:]
             self.result = np.zeros(12 * n_channel, dtype=CHAR)
+            self.diffs = np.zeros((4, n_channel), dtype=FLOAT) 
             self.result_p = <char *>self.result.data
-        print 'levs:', self.levs, levs
+            self.diffs_p = <FLOAT_t *>(self.diffs.data)
         with nogil:
             process(self.context, <FLOAT_t *>data.data,
-                    self.result_p)    
+                    self.result_p, self.diffs_p)    
         return self.result
 
     def __dealloc__(self):

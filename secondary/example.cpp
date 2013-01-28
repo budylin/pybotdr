@@ -12,6 +12,7 @@
 #define DECAYSCOUNT 4
 #define LEVELSCOUNT 3
 //#define NORMALIZE 1
+#undef SECONDARY
 
 struct context_t {
     unsigned start;
@@ -44,8 +45,10 @@ create_context(unsigned start, unsigned n_channel, int window_width,
     printf("\tstart for secondary %u\n", start);
     printf("\tn_channel for secondary %u\n", n_channel);
     context->isfirst = 1;
-//    if (!context->sensor)
-//        context->sensor = createSensor((char *)"1001",(char *)"config.ini");
+#ifdef SECONDARY
+    if (!context->sensor)
+        context->sensor = createSensor((char *)"1001",(char *)"config.ini");
+#endif
     for (i = 0; i < FILTERSCOUNT; i++)
         context->filterIsTransmited[i] = 1;
     context->tmp.resize(n_channel);
@@ -123,21 +126,8 @@ sub_trend(std::vector<double> &data, int window_width)
     std::vector<double> window, conv;
     blackman(window_width, window);
     convolve(data, window, conv);
-    printf("data, conv: %f, %f\n",
-            data[data.size() / 2], conv[data.size() / 2]);
     std::transform(data.begin(), data.end(), conv.begin(), data.begin(),
                    std::minus<double>());
-
-#if 0
-    char name[100];
-    static int i = 0;
-    int j;
-    snprintf(name, 100, "%d.dat", i++);
-    FILE *fp = fopen(name, "w");
-    for (j = 0; j < data.size(); j++)
-        fprintf(fp, "%lf\n", data[j]);
-    fclose(fp);
-#endif
 }
 
 static void
@@ -180,12 +170,13 @@ normalize(std::vector<double> &x, const std::vector<double> &reference)
 
 
 void
-process(void *context, double *array, char *out)
+process(void *context, double *array, char *out, double *diffs)
 {
     context_t *ctx = (context_t *)context;
-    FILE *fp;
     double sigma;
-//    DSensorDataRecord *record;
+#if SECONDARY
+    DSensorDataRecord *record;
+#endif
     int i, j, k, z;
     if (ctx->isfirst)
     {
@@ -200,41 +191,36 @@ process(void *context, double *array, char *out)
     }
     else
     {
-        fp = fopen("/tmp/refenernce.dat", "w");
         ctx->current.assign(array + ctx->start,
                             array + ctx->start + ctx->n_channel);
 #ifdef NORMALIZE
         normalize(ctx->current, ctx->prev);
 #endif
         sub_trend(ctx->current, ctx->window_width);
-//        record = createDSensorDataRecord(ctx->n_channel, FILTERSCOUNT,
-//                                         ctx->filterIsTransmited);
+
+#ifdef SECONDARY
+        record = createDSensorDataRecord(ctx->n_channel, FILTERSCOUNT,
+                                         ctx->filterIsTransmited);
+#endif
         for (j = 0; j < DECAYSCOUNT; j++)
         {
-            for (i = 0; i < ctx->n_channel; i++)
-            {
-                fprintf(fp, "%f %f %f %f",
-                        ctx->references[0][i],
-                        ctx->references[1][i],
-                        ctx->references[2][i],
-                        ctx->references[3][i]);
-                fprintf(fp, " %f ", array[i]);
-                fprintf(fp, " %f\n", ctx->current[i]);
-            }
             feedback(ctx->references[j], ctx->prev, ctx->decays[j]);
             std::transform(ctx->current.begin(), ctx->current.end(),
                            ctx->references[j].begin(),
                            ctx->tmp.begin(),
                            std::minus<double>());
+/* Hwat?? Looks like an awful blunder
             std::transform(ctx->current.begin(), ctx->current.end(),
                            ctx->current.begin(),
                            [](double x) {return x * x;});
+*/
             sigma = dispersion(ctx->tmp, ctx->tmp2);
-            printf("disp: %f\n", sigma);
+            std::copy(ctx->tmp.begin(), ctx->tmp.end(),
+                      diffs + j * ctx->n_channel);
+#if SECONDARY
             for (k = 0; k < LEVELSCOUNT; k++)
             {
                 z = j + k * DECAYSCOUNT;
-#if 0
                 std::transform(ctx->tmp.begin(),
                     ctx->tmp.end(),
                     record->filtersData[z],
@@ -242,12 +228,11 @@ process(void *context, double *array, char *out)
                     {
                         return (char)(fabs(x) > sigma * ctx->levels[k]);
                     });
-#endif
             }
+#endif
         }
         ctx->prev.assign(ctx->current.begin(), ctx->current.end());
 //        addNewMeasure(ctx->sensor, record);
-        fclose(fp);
     }
 }
 

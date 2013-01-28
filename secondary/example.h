@@ -6,7 +6,7 @@ extern "C" {
 void *create_context(unsigned start, unsigned n_channel, int window_width,
                      double *decays, double *levels);
 void free_context(void *context);
-void process(void *context, double *array, char *out);
+void process(void *context, double *array, char *out, double *diffs);
 #ifdef __cplusplus
 }
 #endif
