@@ -65,10 +65,25 @@ class MainWindow(Base, Form):
                                        self, zeroed=True, points=True,
                                        lines=True, levels=[0,0,1000,1000],
                                        ncurves=8)
-        self.plots.addWidget(self.spectraplot, 0, 0, 1, 1)
-        self.plots.addWidget(self.temperatureplot, 0, 1)
-        self.plots.addWidget(self.dragonplot, 1, 1)
-        self.plots.addWidget(self.distanceplot, 1, 0, 1, 1)
+        self.diffsPlot = plots.Plot(QtCore.QRectF(0, -500, 8*6144, 2*500),
+                                    self, zeroed=False, points=True,
+                                    lines=True, levels=[0,0,1000,1000],
+                                    ncurves=8)
+
+        self.graphTabs = QtGui.QTabWidget(self)
+
+        self.primaryGraphs = uic.loadUi("nonthermo.ui")
+        self.primaryGraphs.layout().addWidget(self.spectraplot, 0, 0, 1, 1)
+        self.primaryGraphs.layout().addWidget(self.temperatureplot, 0, 1)
+        self.primaryGraphs.layout().addWidget(self.dragonplot, 1, 1)
+        self.primaryGraphs.layout().addWidget(self.distanceplot, 1, 0, 1, 1)
+        self.graphTabs.insertTab(0, self.primaryGraphs, "primary")
+
+        self.secondaryGraphs = uic.loadUi("nonthermo.ui")
+        self.secondaryGraphs.layout().addWidget(self.diffsPlot, 0, 0, 1, 1)
+        self.graphTabs.insertTab(1, self.secondaryGraphs, "secondary")
+
+        self.plots.addWidget(self.graphTabs, 0,0,1,1)
 
 
         self.collector = Collector(65520, self.scannerWidget.nsteps.value())
@@ -304,8 +319,6 @@ class MainWindow(Base, Form):
             self.conttimer.setInterval(wait_time)
             self.conttimer.timeout.connect(self._cont)
             self.conttimer.start()
-            self.secondary = secondary.Model()
-            self.connectSecondary()
             print "wait 5 sec.."
 
         else:
@@ -388,9 +401,16 @@ class MainWindow(Base, Form):
         self.collector.setNextIndex(self.DIL_Tscanner.pos)
         self.startUpScan()
 
+    def processSecondary(self):
+        for i in range(4):
+            diff = self.secondary.diffs[i] - (i - 1.5) * 20
+            print diff
+            self.diffsPlot.myplot(diff, n=i)
+
     def connectSecondary(self):
         self.correlator.measured.connect(lambda x: self.secondary(x[0]))
-        self.zone.start.setValue(self.secondary.start)
+        self.secondary.measured.connect(self.processSecondary)
+        self.zone.start.setValue(self.secondary.startChannel)
         self.zone.length.setValue(self.secondary.length)
         for i in range(4):
             widget = getattr(self.zone, 'dec%d' % i)

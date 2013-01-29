@@ -90,7 +90,38 @@ def connectDragon(dragon, wnd):
     wnd.pcieWidget.valueChanged.connect(dragon.setPCIESettings)
     dragon.measured.connect(wnd.on_new_reflectogramm)
 
-def main():
+class dummy(object):
+    def __init__(self, framelength, steps):
+        import numpy as np
+        from PyQt4 import QtCore
+        self.framelength = framelength
+        self.steps = steps
+        self.array = np.array([np.linspace(-3, 3, steps)] * framelength).T
+        self.array = 100 * np.exp(-self.array*self.array)
+        self.array[:,-1000:] = 0.
+        self.i = 0
+        self.going = False
+        self.timer = QtCore.QTimer()
+        self.randint = np.random.randint
+        self.roll = np.roll
+
+    def ref(self):
+        shift = self.randint(11) - 5
+        self.data = self.array[self.i]
+        if self.i == self.steps - 1:
+            self.array[:,1000] = self.roll(self.array[:,1000], shift)
+        self.i = (self.i + 1) % self.steps
+        return self
+
+    def toggle(self):
+        self.going = not self.going
+        if self.going:
+            self.timer.start(200)
+        else:
+            self.timer.stop()
+
+
+def main(test):
     app = QtGui.QApplication(sys.argv)
     wnd = MainWindow()
 
@@ -106,8 +137,23 @@ def main():
         dragon.setPCIESettings(wnd.pcieWidget.value())
         dragon.start()
 
+    if test:
+        framelength = wnd.pcieWidget.framelength.value()
+        ndots = wnd.DILTScannerWidget.nsteps.value()
+        x = dummy(framelength, ndots)
+        btn = QtGui.QPushButton("ref")
+        btn.show()
+        x.timer.timeout.connect(lambda: wnd.on_new_reflectogramm(x.ref()))
+
+        btn.clicked.connect(lambda: x.toggle())
+
     wnd.show()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(prog='pybotdr')
+    parser.add_argument('-t', '--test', action="store_true")
+    opt = parser.parse_args()
+    main(opt.test)
+

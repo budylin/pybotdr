@@ -1,5 +1,6 @@
 import pysecondary
 import shelve
+from PyQt4 import QtCore
 
 def load(shelve, key, default=0):
     try:
@@ -10,18 +11,34 @@ def load(shelve, key, default=0):
         shelve.sync()
     return val
 
-class Model:
+class Model(QtCore.QThread):
+    measured = QtCore.pyqtSignal()
     def __init__(self):
+        QtCore.QThread.__init__(self)
         self.saved = shelve.open("secondary.db", writeback=True)
-        self.start = load(self.saved, 'start')
+        self.startChannel = load(self.saved, 'start')
         self.length = load(self.saved, 'length')
         self.decays = load(self.saved, 'decays', [1.] * 4)
         self.levels = load(self.saved, 'levels', [4., 6., 9.])
         self.process = pysecondary.Secondary()
 
     def __call__(self, data):
-        return self.process(data, self.start, self.length, 600,
+        self.data = data
+        print 'Secondary called'
+        self.run()
+
+    def run(self):
+        print 'Secondary started'
+        print self.data.shape
+        print self.startChannel, self.length, 600
+        self.process(self.data, self.startChannel, self.length, 600,
                             self.decays, self.levels)
+        print 'Emitting secondary.measured'
+        self.measured.emit()
+
+    @property
+    def diffs(self):
+        return self.process.diffs
 
     def __del__(self):
         self.saved.close()
@@ -32,7 +49,7 @@ class Model:
         self.saved.sync()
 
     def set_start(self, val):
-        self.start = val
+        self.startChannel = val
         self.saved['start'] = val
         self.saved.sync()
 
