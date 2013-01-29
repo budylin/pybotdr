@@ -29,7 +29,6 @@ class MainWindow(Base, Form):
         super(Base, self).__init__(parent)
         self.setupUi(self)
 
-        self.settingstabs = QtGui.QTabWidget(self)
 
         self.nonthermo = uic.loadUi("nonthermo.ui")
         self.otherWidget = uic.loadUi("other.ui")
@@ -43,22 +42,19 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget = ScannerWidget(name="DIL_Tscanner")
         self.DILTScannerWidget.groupBox.setTitle("DIL_T scanner")
 
-
-
-#        self.settings.addWidget(self.usbWidget, 0, 1, 2, 1)
         self.scannerSelect.layout().insertWidget(1, self.scannerWidget)
         self.scannerSelect.layout().insertWidget(3, self.DILTScannerWidget)
-        self.nonthermo.layout().addWidget(self.scannerSelect, 0, 0, 2, 1)
-        self.nonthermo.layout().addWidget(self.otherWidget, 2, 0, 1, 1)
+        self.nonthermo.layout().addWidget(self.scannerSelect, 0, 0, 3, 1)
+        self.nonthermo.layout().addWidget(self.otherWidget, 2, 1, 1, 1)
         self.nonthermo.layout().addWidget(self.zone, 0, 1, 1, 1)
-        self.nonthermo.layout().addWidget(self.pcieWidget, 1, 1, 1, 1)
-        self.nonthermo.layout().addWidget(self.correctorWidget, 2, 1, 1, 1)
+        self.nonthermo.layout().addWidget(self.correctorWidget, 1, 1, 1, 1)
 
-        self.settingstabs.insertTab(0, self.nonthermo, "Scanning setup")
-        self.settingstabs.insertTab(1, self.usbWidget, "Laser setup")
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
-        self.settingstabs.setSizePolicy(sizePolicy)
-        self.settings.addWidget(self.settingstabs, 0, 0, 1, 1)
+        self.usbWidget.tabWidget.insertTab(2, self.nonthermo, "Scanning setup")
+        self.usbWidget.tabWidget.insertTab(3, self.pcieWidget, "Dragon")
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum,
+                                       QtGui.QSizePolicy.Preferred)
+        self.usbWidget.setSizePolicy(sizePolicy)
+        self.settings.addWidget(self.usbWidget, 0, 0, 1, 1)
 
         dragonrect = QtCore.QRectF(0, plots.SIGNAL_BOT, 8*6144,
                                    plots.SIGNAL_TOP - plots.SIGNAL_BOT)
@@ -337,7 +333,7 @@ class MainWindow(Base, Form):
                 self.status = "idle"
 
     def mouseDoubleClickEvent(self, event):
-        widgets = [self.settingstabs]
+        widgets = [self.usbWidget]
         if self.plotsOnly:
             for w in widgets:
                 w.show()
