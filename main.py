@@ -128,7 +128,7 @@ def main(test):
     usb = openUSB()
     if usb:
         connectUSB(usb, wnd)
-        self.updateUSBSettingsView(self.usbWorker.usbSettings.file)
+        wnd.updateUSBSettingsView(self.usbWorker.usbSettings.file)
 
     dragon = openDragon()
     if dragon:
