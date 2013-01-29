@@ -81,9 +81,9 @@ def connectUSB(usb, wnd):
     wnd.setPFGI_TscanAmp.connect(usb.setPFGI_TscanAmp)
     wnd.setDIL_T.connect(usb.setDIL_T)
     wnd.setDIL_T_scan_time.connect(usb.setDIL_T_scan_time)
-    wnd.measure.connect(usb.measure)
+    wnd.usbMeasure.connect(usb.measure)
 
-    connectManualControl(usb, wnd)
+    connectUSBManualControl(usb, wnd)
 
 def connectDragon(dragon, wnd):
     wnd.pcieWidget.valueChanged.connect(dragon.setPCIESettings)
