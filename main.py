@@ -74,7 +74,6 @@ def connectUSB(usb, wnd):
     usb.setDIL_T_scan_top(wnd.DILTScannerWidget.top.value())
     usb.setDIL_T_scan_bottom(wnd.DILTScannerWidget.bottom.value())
 
-    wnd.connectUSBSettingsWithInterface()
 
     wnd.startUpScan.connect(usb.start_up_scan)
     wnd.startDownScan.connect(usb.start_down_scan)
