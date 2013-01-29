@@ -1,10 +1,8 @@
 from PyQt4 import Qt, QtCore, QtGui, uic, Qwt5 as Qwt
 from collector import Collector
-import pcienetclient as pcie
 import  pciedevsettings
 import plots
-import usbdev
-from usbworker import USBWorker
+from usbdev import USBSettings
 import time
 import scanner
 from datetime import datetime
@@ -21,6 +19,12 @@ INNER_STABILIZATION_TIME = 1
 
 Base, Form = uic.loadUiType("window.ui")
 class MainWindow(Base, Form):
+    startUpScan = QtCore.pyqtSignal()
+    startDownScan = QtCore.pyqtSignal()
+    setPFGI_TscanAmp = QtCore.pyqtSignal(int)
+    setDIL_T = QtCore.pyqtSignal(int)
+    setDIL_T_scan_time = QtCore.pyqtSignal(int)
+    usbMeasure = QtCore.pyqtSignal()
     def __init__(self, parent=None):
         super(Base, self).__init__(parent)
         self.setupUi(self)
@@ -70,7 +74,6 @@ class MainWindow(Base, Form):
         self.plots.addWidget(self.dragonplot, 1, 1)
         self.plots.addWidget(self.distanceplot, 1, 0, 1, 1)
 
-        self.usbWorker = USBWorker()
 
         self.collector = Collector(65520, self.scannerWidget.nsteps.value())
         self.memoryupdater = MemoryUpdater(self)
@@ -87,8 +90,6 @@ class MainWindow(Base, Form):
         self.DIL_Tscanner = scanner.TimeScanner(n=self.DILTScannerWidget.nsteps.value())
         #self.DIL_Tscanner.changeTemperature.connect(self.usbWorker.setDIL_T)
 
-        self.updateUSBSettingsView()
-        self.connectUSBSettingsWithInterface()
         self.connectScanerWidget()
         self.connectOtherWidget()
         #TODO: self.pushButton.clicked.connect(CLEAR_TEMP_PLOT)
@@ -119,9 +120,6 @@ class MainWindow(Base, Form):
         self.corrector.correct.connect(self.usbWidget.spinBox_6.setValue)
         self.usbWidget.spinBox_6.valueChanged.connect(self.corrector.setReaction)
 
-        self.usbWorker.measured.connect(self.usbWidget.showResponse)
-        self.usbWorker.measured.connect(self.collector.appendUSBResponse)
-        self.usbWorker.statusChanged.connect(self.usbWidget.label_status.setText)
 
 
         self.temperatureplot.t0 = lambda v:self.temperatureplot.myplot(v, 0)
@@ -130,15 +128,10 @@ class MainWindow(Base, Form):
         self.collector.temperatureCurveChanged.connect(self.temperatureplot.t0)
         self.collector.temperatureCurve2Changed.connect(self.temperatureplot.t1)
 
-        self.pcieClient = pcie.PCIENetWorker()
-        self.pcieClient.setPCIESettings(self.pcieWidget.value())
 
-        self.pcieClient.measured.connect(self.on_new_reflectogramm)
         self.collector.setReflectogrammLength(self.pcieWidget.framelength.value())
 
 
-        self.pcieClient.start()
-        #self.pcieClient.measured.connect(lambda x: self.dragonplot.myplot(x.data))
         self.status = "waiting"
         self.start = time.time()
         self.time_prev = time.time()
@@ -154,7 +147,6 @@ class MainWindow(Base, Form):
             self.maximizer.set_bottom(self.DILTScannerWidget.bottom.value())
             self.maximizer.set_dt(self.DILTScannerWidget.dt())
 
-        self.pcieWidget.valueChanged.connect(self.pcieClient.setPCIESettings)
 
         #WARNING old code! revision may be needed
         #self.collector.reflectogrammChanged.connect(self.dragonplot.myplot)
@@ -193,8 +185,6 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget.nsteps.valueChanged.connect(self.change_scan_time)
 
         self.change_scan_time()
-        self.usbWorker.setDIL_T_scan_top(self.DILTScannerWidget.top.value())
-        self.usbWorker.setDIL_T_scan_bottom(self.DILTScannerWidget.bottom.value())
 
         self.showMaximized()
         self.plotsOnly = False
@@ -224,8 +214,8 @@ class MainWindow(Base, Form):
             print "Waiting.."
             if time.time() - self.start > EXTERNAL_STABILIZATION_TIME:
                 self.status = "searching"
-                self.usbWorker.setPFGI_TscanAmp(32000)
-                self.usbWorker.setDIL_T(self.search_list[-1])
+                self.setPFGI_TscanAmp.emit(32000)
+                self.setDIL_T.emit(self.search_list[-1])
 
         elif self.status == "searching":
             print "Searching.."
@@ -235,7 +225,7 @@ class MainWindow(Base, Form):
                     next_T = self.search_list.pop()
                 except IndexError:
                     max_dev, temperature = sorted(self.resp_amp)[-1]
-                    self.usbWorker.setDIL_T(temperature)
+                    self.setDIL_T.emit(temperature)
                     print "Setting DIL_T to %d" % temperature
                     self.startaccuratetimescan(True, 25000)
                     self.scannerWidget.accurateScan.blockSignals(True)
@@ -243,7 +233,7 @@ class MainWindow(Base, Form):
                     self.scannerWidget.accurateScan.blockSignals(False)
                 else:
                     self.resp_amp.append((np.std(data), next_T))
-                    self.usbWorker.setDIL_T(self.search_list[-1])
+                    self.setDIL_T.emit(self.search_list[-1])
                     print "Setting DIL_T to %d" % self.search_list[-1]
 
         elif self.status == "scanning":
@@ -255,9 +245,9 @@ class MainWindow(Base, Form):
                 self.DIL_Tscanner.scan()
                 self.collector.setNextIndex(self.DIL_Tscanner.pos)
                 if self.DIL_Tscanner.top_reached:
-                    self.usbWorker.start_down_scan()
+                    self.startDownScan.emit()
                 elif self.DIL_Tscanner.bottom_reached:
-                    self.usbWorker.start_up_scan()
+                    self.startUpScan.emit()
                 if (self.DIL_Tscanner.top_reached or
                     self.DIL_Tscanner.bottom_reached):
                     submatrix_to_process = self.DIL_Tscanner.lastsubmatrix
@@ -266,7 +256,7 @@ class MainWindow(Base, Form):
                     self.scanner.scan_position)
                 self.scanner.scan()
                 self.collector.setNextIndex(self.scanner.pos)
-                self.usbWorker.setPFGI_TscanAmp(self.scanner.targetT)
+                self.setPFGI_TscanAmp.emit(self.scanner.targetT)
                 if (self.scanner.top_reached or
                     self.scanner.bottom_reached):
                     submatrix_to_process = self.scanner.lastsubmatrix
@@ -283,7 +273,7 @@ class MainWindow(Base, Form):
         ndot = self.DILTScannerWidget.nsteps.value()
         time = 2 * framelength * framecount * ndot / 133000000
         print "Estimated scan time is ", time, " seconds"
-        self.usbWorker.setDIL_T_scan_time(time)
+        self.setDIL_T_scan_time.emit(time)
 
 
     def enablePulseScanner(self, val):
@@ -308,11 +298,11 @@ class MainWindow(Base, Form):
 
     def timerEvent(self, timer):
         if timer.timerId() == self.measuretimer:
-            self.usbWorker.measure()
+            self.usbMeasure.emit()
 
     def startaccuratetimescan(self, val, wait_time=5000):
         if val:
-            self.usbWorker.setPFGI_TscanAmp(self.scanner.bot)
+            self.setPFGI_TscanAmp.emit(self.scanner.bot)
             self.conttimer = QtCore.QTimer()
             self.conttimer.setSingleShot(True)
             self.conttimer.setInterval(wait_time)
@@ -331,7 +321,7 @@ class MainWindow(Base, Form):
 
     def start_DILT_scan(self, val):
         if val:
-            self.usbWorker.setDIL_T(self.DIL_Tscanner.bot)
+            self.setDIL_T.emit(self.DIL_Tscanner.bot)
             self.conttimer = QtCore.QTimer()
             self.conttimer.setSingleShot(True)
             self.conttimer.setInterval(5000)
@@ -400,7 +390,7 @@ class MainWindow(Base, Form):
         self.collector.clear()
         self.DIL_Tscanner.reset()
         self.collector.setNextIndex(self.DIL_Tscanner.pos)
-        self.usbWorker.start_up_scan()
+        self.startUpScan()
 
     def connectSecondary(self):
         self.correlator.measured.connect(lambda x: self.secondary(x[0]))
@@ -447,8 +437,6 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget.nsteps.valueChanged.connect(self.DIL_Tscanner.setNdot)
         self.DILTScannerWidget.accurateScan.clicked.connect(self.start_DILT_scan)
 
-        self.DILTScannerWidget.top.valueChanged.connect(self.usbWorker.setDIL_T_scan_top)
-        self.DILTScannerWidget.bottom.valueChanged.connect(self.usbWorker.setDIL_T_scan_bottom)
 
 
 
@@ -456,45 +444,12 @@ class MainWindow(Base, Form):
         self.otherWidget.plotChannel.valueChanged.connect(self.spectraplot.setChannel)
         self.otherWidget.saveData.clicked.connect(self.collector.savelastscan)
         self.otherWidget.saveView.clicked.connect(self.saveView)
-        self.otherWidget.flashSTM.clicked.connect(self.usbWorker.flash)
         self.otherWidget.inverse.toggled.connect(
             self.collector.setInversion)
 
-    def connectUSBSettingsWithInterface(self):
-        widget = self.usbWidget
-        widget.spinBox.valueChanged.connect(self.usbWorker.setPFGI_amplitude)
-        widget.spinBox_2.valueChanged.connect(self.usbWorker.setPFGI_pedestal)
-        widget.checkBox.toggled.connect(self.usbWorker.setPC4)
-        widget.checkBox_2.toggled.connect(self.usbWorker.setPC5)
-        widget.spinBox_5.valueChanged.connect(self.usbWorker.setDIL_I)
-        widget.spinBox_6.valueChanged.connect(self.usbWorker.setDIL_T)
-        widget.spinBox_7.valueChanged.connect(self.usbWorker.setPFGI_Tset)
-        widget.spinBox_8.valueChanged.connect(self.usbWorker.setPFGI_TscanAmp)
-        widget.spinBox_3.valueChanged.connect(self.usbWorker.setPROM_hv)
-        widget.spinBox_4.valueChanged.connect(self.usbWorker.setPROM_shift)
-        widget.spinBox_9.valueChanged.connect(self.usbWorker.setFOL1_I)
-        widget.spinBox_10.valueChanged.connect(self.usbWorker.setFOL1_T)
-        widget.spinBox_11.valueChanged.connect(self.usbWorker.setFOL2_I)
-        widget.spinBox_12.valueChanged.connect(self.usbWorker.setFOL2_T)
-        widget.spinBox_a1.valueChanged.connect(self.usbWorker.setA1)
-        widget.spinBox_a2.valueChanged.connect(self.usbWorker.setA2)
-        widget.spinBox_a3.valueChanged.connect(self.usbWorker.setA3)
-        widget.spinBox_b1.valueChanged.connect(self.usbWorker.setB1)
-        widget.spinBox_b2.valueChanged.connect(self.usbWorker.setB2)
-        widget.spinBox_b3.valueChanged.connect(self.usbWorker.setB3)
-        widget.spinBox_c1.valueChanged.connect(self.usbWorker.setC1)
-        widget.spinBox_c2.valueChanged.connect(self.usbWorker.setC2)
-        widget.spinBox_c3.valueChanged.connect(self.usbWorker.setC3)
-        widget.spinBox_t1.valueChanged.connect(self.usbWorker.setT1set)
-        widget.spinBox_t2.valueChanged.connect(self.usbWorker.setT2set)
-        widget.spinBox_t3.valueChanged.connect(self.usbWorker.setT3set)
-        widget.radioButton.toggled.connect(self.usbWorker.setPID)
-        widget.spinBox_TScanPeriod.valueChanged.connect(self.usbWorker.setPFGI_TscanPeriod)
-        widget.checkBox_3.toggled.connect(self.usbWorker.setDiode)
 
-    def updateUSBSettingsView(self):
+    def updateUSBSettingsView(self, file):
         widget = self.usbWidget
-        file = self.usbWorker.usbSettings.file
         widget.spinBox_a1.setValue(file.value("A1").toInt()[0])
         widget.spinBox_a2.setValue(file.value("A2").toInt()[0])
         widget.spinBox_a3.setValue(file.value("A3").toInt()[0])
@@ -516,7 +471,7 @@ class MainWindow(Base, Form):
         widget.spinBox_5.setValue(file.value("DIL_I").toInt()[0])
         widget.spinBox_6.setValue(file.value("DIL_T").toInt()[0])
         widget.spinBox_7.setValue(file.value("PFGI_Tset").toInt()[0])
-        widget.spinBox_8.setValue(file.value("PFGI_TscanAmp").toInt()[0])
+        widget.PFGI_TscanAmp.setValue(file.value("PFGI_TscanAmp").toInt()[0])
         widget.spinBox_TScanPeriod.setValue(
             file.value("PFGI_TscanPeriod").toInt()[0])
         widget.spinBox_9.setValue(file.value("FOL1_I").toInt()[0])
@@ -533,7 +488,7 @@ class MainWindow(Base, Form):
 
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
 class USBWidget(BaseUSB, FormUSB):
-    valuesChanged = QtCore.pyqtSignal(usbdev.USBSettings)
+    valuesChanged = QtCore.pyqtSignal(USBSettings)
     def __init__(self, parent=None):
         super(BaseUSB, self).__init__(parent)
         self.setupUi(self)

@@ -4,6 +4,7 @@
 *.so
 *.o
 
+/secondary/secondary.c
 secondary.db
 sensorindexfile.idx
 /bsensor/*
