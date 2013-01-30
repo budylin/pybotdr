@@ -124,18 +124,6 @@ def main(test):
     app = QtGui.QApplication(sys.argv)
     wnd = MainWindow()
 
-    usb = openUSB()
-    if usb:
-        connectUSB(usb, wnd)
-        wnd.updateUSBSettingsView(usb.usbSettings.file)
-
-    dragon = openDragon()
-    if dragon:
-        connectDragon(dragon, wnd)
-        # TODO setting should be stored not in widget
-        dragon.setPCIESettings(wnd.pcieWidget.value())
-        dragon.start()
-
     if test:
         framelength = wnd.pcieWidget.framelength.value()
         ndots = wnd.DILTScannerWidget.nsteps.value()
@@ -143,8 +131,21 @@ def main(test):
         btn = QtGui.QPushButton("ref")
         btn.show()
         x.timer.timeout.connect(lambda: wnd.on_new_reflectogramm(x.ref()))
-
         btn.clicked.connect(lambda: x.toggle())
+
+    else:
+        usb = openUSB()
+        if usb:
+            connectUSB(usb, wnd)
+            wnd.updateUSBSettingsView(usb.usbSettings.file)
+
+        dragon = openDragon()
+        if dragon:
+            connectDragon(dragon, wnd)
+            # TODO setting should be stored not in widget
+            dragon.setPCIESettings(wnd.pcieWidget.value())
+            dragon.start()
+
 
     wnd.show()
     sys.exit(app.exec_())
