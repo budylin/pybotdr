@@ -212,9 +212,9 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget.bottom.valueChanged.connect(
             self.maximizer.set_bottom)
 
-        self.sender = Sender()
-        self.correlator.submatrix_processed.connect(
-            lambda res: self.sender.send_data(res, 0))
+#        self.sender = Sender()
+#        self.correlator.submatrix_processed.connect(
+#            lambda res: self.sender.send_data(res, 0))
 
 
     def on_new_reflectogramm(self, pcie_dev_response):
@@ -500,7 +500,8 @@ class MainWindow(Base, Form):
         self.FOL2timer = self.startTimer(self.usbWidget.FOL2_period.value())
 
     def closeEvent(self, event):
-        self.sender.stop()
+#        self.sender.stop()
+        pass
 
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
 class USBWidget(BaseUSB, FormUSB):
