@@ -7,10 +7,10 @@ class Averager(QtCore.QThread):
         QtCore.QObject.__init__(self, parent)
         self.distances = []
         self.number = 10
-    
+
     def setNumber(self, number):
         self.number = number
-    
+
     def appendDistances(self, distances):
         self.distances.append(distances)
         if len(self.distances) > self.number:
@@ -18,14 +18,14 @@ class Averager(QtCore.QThread):
         if len(self.distances) >= self.number:
             self.start()
         print "averager has", len(self.distances),  "of", self.number,  "samples"
-            
+
     def run(self):
         res = np.zeros(self.distances[-1].shape, dtype=float)
         for i in range(self.number):
             res += self.distances[-i - 1]
         res /= self.number
         self.measured.emit(res)
-            
+
     def clear(self):
         self.distances = []
-    
+

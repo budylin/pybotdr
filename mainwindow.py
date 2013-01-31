@@ -91,8 +91,8 @@ class MainWindow(Base, Form):
         self.correlator = Correlator(self)
         self.maximizer = Maximizer(self)
         self.secondary = secondary.Model()
-        self.connectSecondary()
         self.corraverager = Averager(self)
+        self.connectSecondary()
         self.correlator.measured.connect(self.corraverager.appendDistances)
         self.appraverager = Averager(self)
 #        self.approximator.measured.connect(self.appraverager.appendDistances)
@@ -408,7 +408,7 @@ class MainWindow(Base, Form):
             self.diffsPlot.myplot(diff, n=i)
 
     def connectSecondary(self):
-        self.correlator.measured.connect(lambda x: self.secondary(x[0]))
+        self.corraverager.measured.connect(lambda x: self.secondary(x[0]))
         self.secondary.measured.connect(self.processSecondary)
         self.zone.start.setValue(self.secondary.startChannel)
         self.zone.length.setValue(self.secondary.length)
