@@ -34,6 +34,7 @@ class Plot(Qwt.QwtPlot):
                 symbol = Qwt.QwtSymbol(shape, color,
                                        QtGui.QPen(color), Qt.QSize(3,3))
                 curve.setSymbol(symbol)
+                curve.setPaintAttribute(Qwt.QwtPlotCurve.PaintFiltered)
                 if not lines:
                     curve.setStyle(Qwt.QwtPlotCurve.NoCurve)
             self.curves.append(curve)
