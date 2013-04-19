@@ -125,11 +125,11 @@ class MainWindow(Base, Form):
         self.corrector.setA(self.correctorWidget.A.value())
         self.corrector.setEnabled(self.correctorWidget.enabled.isChecked())
         self.corrector.setChannel(self.correctorWidget.channel.value())
-        self.corrector.setReaction(self.usbWidget.spinBox_6.value())
+        self.corrector.setReaction(self.usbWidget.DIL_T.value())
 
         self.maximizer.measured.connect(self.corrector.appendDistances)
-        self.corrector.correct.connect(self.usbWidget.spinBox_6.setValue)
-        self.usbWidget.spinBox_6.valueChanged.connect(self.corrector.setReaction)
+        self.corrector.correct.connect(self.usbWidget.DIL_T.setValue)
+        self.usbWidget.DIL_T.valueChanged.connect(self.corrector.setReaction)
 
 
 
@@ -463,38 +463,6 @@ class MainWindow(Base, Form):
         self.otherWidget.inverse.toggled.connect(
             self.collector.setInversion)
 
-
-    def updateUSBSettingsView(self, file):
-        widget = self.usbWidget
-        widget.spinBox_a1.setValue(file.value("A1").toInt()[0])
-        widget.spinBox_a2.setValue(file.value("A2").toInt()[0])
-        widget.spinBox_a3.setValue(file.value("A3").toInt()[0])
-        widget.spinBox_b1.setValue(file.value("B1").toInt()[0])
-        widget.spinBox_b2.setValue(file.value("B2").toInt()[0])
-        widget.spinBox_b3.setValue(file.value("B3").toInt()[0])
-        widget.spinBox_c1.setValue(file.value("C1").toInt()[0])
-        widget.spinBox_c2.setValue(file.value("C2").toInt()[0])
-        widget.spinBox_c3.setValue(file.value("C3").toInt()[0])
-        widget.spinBox_t1.setValue(file.value("T1set").toInt()[0])
-        widget.spinBox_t2.setValue(file.value("T2set").toInt()[0])
-        widget.spinBox_t3.setValue(file.value("T3set").toInt()[0])
-        widget.checkBox.setChecked(file.value("PC4").toBool())
-        widget.checkBox_2.setChecked(file.value("PC5").toBool())
-        widget.spinBox.setValue(file.value("PFGI_amplitude").toInt()[0])
-        widget.spinBox_2.setValue(file.value("PFGI_pedestal").toInt()[0])
-        widget.spinBox_3.setValue(file.value("PROM_hv").toInt()[0])
-        widget.spinBox_4.setValue(file.value("PROM_shift").toInt()[0])
-        widget.spinBox_5.setValue(file.value("DIL_I").toInt()[0])
-        widget.spinBox_6.setValue(file.value("DIL_T").toInt()[0])
-        widget.spinBox_7.setValue(file.value("PFGI_Tset").toInt()[0])
-        widget.PFGI_TscanAmp.setValue(file.value("PFGI_TscanAmp").toInt()[0])
-        widget.spinBox_TScanPeriod.setValue(
-            file.value("PFGI_TscanPeriod").toInt()[0])
-        widget.spinBox_9.setValue(file.value("FOL1_I").toInt()[0])
-        widget.spinBox_10.setValue(file.value("FOL1_T").toInt()[0])
-        widget.spinBox_11.setValue(file.value("FOL2_I").toInt()[0])
-        widget.spinBox_12.setValue(file.value("FOL2_T").toInt()[0])
-
     def start_FOL2_oscilation(self):
         self.killTimer(self.FOL2timer)
         self.FOL2timer = self.startTimer(self.usbWidget.FOL2_period.value())
@@ -503,9 +471,28 @@ class MainWindow(Base, Form):
 #        self.sender.stop()
         pass
 
+class Statable(object):
+    def setstate(self, state):
+        for key in self.valueable:
+            self.__dict__[key].setValue(state[key])
+        for key in self.checkable:
+            self.__dict__[key].setChecked(state[key])
+
+    def getstate(self):
+        return dict(zip(self.valueable, [self.__dict__[key].value() for key in self.valueable]))
+
+
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
-class USBWidget(BaseUSB, FormUSB):
+class USBWidget(BaseUSB, FormUSB, Statable):
     valuesChanged = QtCore.pyqtSignal(USBSettings)
+
+    valueable = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3",
+                 "T1set", "T2set", "T3set", "PFGI_amplitude",
+                 "PFGI_pedestal", "PROM_hv", "PROM_shift",
+                 "DIL_I", "DIL_T", "PFGI_Tset", "PFGI_TscanAmp",
+                 "PFGI_TscanPeriod", "FOL1_I", "FOL1_T", "FOL2_I", "FOL2_T"]
+    checkable = ["PC4", "PC5"]
+
     def __init__(self, parent=None):
         super(BaseUSB, self).__init__(parent)
         self.setupUi(self)
@@ -522,23 +509,24 @@ class USBWidget(BaseUSB, FormUSB):
         self.label_f3.setText(str(response.F3))
         self.label_19.setText(str(response.temp_C))
 
-
 import pickle
+
+
+
+
 DragomBase, DragonForm = uic.loadUiType("dragon.ui")
-class DragonWidget(DragomBase, DragonForm):
+class DragonWidget(DragomBase, DragonForm, Statable):
     valueChanged = QtCore.pyqtSignal(pciedevsettings.PCIESettings)
+
+    valueable = ["ch1amp", "ch1shift", "ch1count", "ch2amp",
+                 "ch2count", "ch2shift", "framelength", "framecount"]
+    checkable = []
+
     def __init__(self, parent=None):
         super(DragomBase, self).__init__(parent)
         self.setupUi(self)
-        try:
-            self._value = pickle.load(open("pciesettings.ini", "r"))
-        except IOError:
-            self._value = self.value()
-        else:
-            for name in ["ch1amp", "ch1shift", "ch1count", "ch2amp",
-                         "ch2count", "ch2shift", "framelength", "framecount"]:
-                self.__dict__[name].setValue(self._value.__dict__[name])
 
+        self.value_ = self.value()
         for widget in [ self.ch1amp, self.ch1shift, self.ch1count,
                         self.ch2amp, self.ch2count, self.ch2shift,
                         self.framelength, self.framecount]:
@@ -564,36 +552,21 @@ class DragonWidget(DragomBase, DragonForm):
     def rereadValue(self):
         val = self.value()
         if val != self._value:
-            pickle.dump(val, open("pciesettings.ini", "w"))
             self._value = val
             self.valueChanged.emit(val)
 
 
 ScannerBase, ScannerForm = uic.loadUiType("timescanner.ui")
-class ScannerWidget(ScannerBase, ScannerForm):
+class ScannerWidget(ScannerBase, ScannerForm, Statable):
     dtChanged = QtCore.pyqtSignal(float)
+    valueable = ["top", "bottom", "averageNumber", "nsteps"]
+    checkable = []
+
     def __init__(self, parent=None, name="timescaner"):
         super(ScannerBase, self).__init__(parent)
         self.setupUi(self)
 
-        self.valueable = ["top", "bottom", "averageNumber", "nsteps"]
-        self.checkable = []
         self.textabel = ["position"]
-        self.name = name
-
-        try:
-            f = open("%s.ini" % self.name, "r")
-        except IOError:
-            pass
-        else:
-            state = pickle.load(f)
-            self.setstate(state)
-            f.close()
-
-        for widget in [self.__dict__[x] for x in self.valueable]:
-            widget.valueChanged.connect(self.savestate)
-        for widget in [self.__dict__[x] for x in self.checkable]:
-            widget.stateChanged.connect(self.savestate)
 
         dt_emitter = lambda x: self.dtChanged.emit(self.dt())
         for widget in [self.top, self.bottom, self.nsteps]:
@@ -603,61 +576,12 @@ class ScannerWidget(ScannerBase, ScannerForm):
         return (float(self.top.value() - self.bottom.value()) /
               (self.nsteps.value() + 1))
 
-    def setstate(self, state):
-        for key in self.valueable:
-            self.__dict__[key].setValue(state[key])
-        for key in self.checkable:
-            self.__dict__[key].setChecked(state[key])
-
-    def getstate(self):
-        return dict(zip(self.valueable, [self.__dict__[key].value() for key in self.valueable]))
-
-    def savestate(self):
-        state = self.getstate()
-        with open("%s.ini" % self.name, "w") as f:
-            pickle.dump(state, f)
-
-
-
 
 CorrectorBase, CorrectorForm = uic.loadUiType("distancecorrector.ui")
-class CorrectorWidget(CorrectorBase, CorrectorForm):
+class CorrectorWidget(CorrectorBase, CorrectorForm, Statable):
+    valueable = ["channel", "distance", "A"]
+    checkable = ["enabled"]
     def __init__(self, parent=None):
         super(CorrectorBase, self).__init__(parent)
         self.setupUi(self)
 
-        self.valueable = ["channel", "distance", "A"]
-        self.checkable = ["enabled"]
-
-        try:
-            f = open("distancecorrector.ini", "r")
-        except IOError:
-            pass
-        else:
-            state = pickle.load(f)
-            self.setstate(state)
-            f.close()
-
-        for widget in [self.__dict__[x] for x in self.valueable]:
-            widget.valueChanged.connect(self.savestate)
-        for widget in [self.__dict__[x] for x in self.checkable]:
-            widget.stateChanged.connect(self.savestate)
-
-
-    def setstate(self, state):
-        for key in self.valueable:
-            self.__dict__[key].setValue(state[key])
-        for key in self.checkable:
-            self.__dict__[key].setChecked(state[key])
-
-    def getstate(self):
-        return {"enabled": self.enabled.isChecked(),
-                "channel": self.channel.value(),
-                "distance": self.distance.value(),
-                "A": self.A.value()
-                }
-
-    def savestate(self):
-        state = self.getstate()
-        with open("distancecorrector.ini", "w") as f:
-            pickle.dump(state, f)

@@ -1,4 +1,5 @@
 import sys
+import ConfigParser
 from PyQt4 import QtGui
 from mainwindow import MainWindow
 
@@ -120,9 +121,44 @@ class dummy(object):
             self.timer.stop()
 
 
+def convert(items):
+    result = {}
+    for key, val in items:
+        if val in ["True", "False"]:
+            conv = val == "True"
+        elif '.' in val:
+            try:
+                conv = float(val)
+            except ValueError:
+                conv = val
+        else:
+            try:
+                conv = int(val)
+            except ValueError:
+                conv = val
+        result[key] = conv
+    return result
+
+
 def main(test):
+    configfiles = set(["settings/timescanner.ini",
+                       "settings/DIL_TScanner.ini",
+                       "settings/distancecorrector.ini",
+                       "settings/settings.ini",
+                       "settings/pciedevsettings.ini"
+                       ])
+    config = ConfigParser.ConfigParser()
+    config.optionxform = str
+    parsedfiles = config.read(configfiles)
+    print parsedfiles, config.sections()
     app = QtGui.QApplication(sys.argv)
     wnd = MainWindow()
+
+    wnd.pcieWidget.setstate(convert(config.items("PCIE")))
+    wnd.DILTScannerWidget.setstate(convert(config.items("DIL_TScanner")))
+    wnd.scannerWidget.setstate(convert(config.items("TimeScanner")))
+    wnd.correctorWidget.setstate(convert(config.items("DistanceCorrector")))
+    wnd.usbWidget.setstate(convert(config.items("General")))
 
     if test:
         framelength = wnd.pcieWidget.framelength.value()
@@ -137,7 +173,6 @@ def main(test):
         usb = openUSB()
         if usb:
             connectUSB(usb, wnd)
-            wnd.updateUSBSettingsView(usb.usbSettings.file)
 
         dragon = openDragon()
         if dragon:
