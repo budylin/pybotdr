@@ -526,13 +526,13 @@ class DragonWidget(DragomBase, DragonForm, Statable):
         super(DragomBase, self).__init__(parent)
         self.setupUi(self)
 
-        self.value_ = self.value()
+        self._value = self.value()
         for widget in [ self.ch1amp, self.ch1shift, self.ch1count,
                         self.ch2amp, self.ch2count, self.ch2shift,
                         self.framelength, self.framecount]:
             widget.valueChanged.connect(self.rereadValue)
         self.framelength.editingFinished.connect(self.selfCorrect)
-
+	
     def selfCorrect(self):
         val = self.framelength.value()
         if val % 6 != 0:

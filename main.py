@@ -30,34 +30,34 @@ def openDragon():
 
 def connectUSBManualControl(usb, wnd):
     widget = wnd.usbWidget
-    widget.spinBox.valueChanged.connect(usb.setPFGI_amplitude)
-    widget.spinBox_2.valueChanged.connect(usb.setPFGI_pedestal)
-    widget.checkBox.toggled.connect(usb.setPC4)
-    widget.checkBox_2.toggled.connect(usb.setPC5)
-    widget.spinBox_5.valueChanged.connect(usb.setDIL_I)
-    widget.spinBox_6.valueChanged.connect(usb.setDIL_T)
-    widget.spinBox_7.valueChanged.connect(usb.setPFGI_Tset)
+    widget.PFGI_amplitude.valueChanged.connect(usb.setPFGI_amplitude)
+    widget.PFGI_pedestal.valueChanged.connect(usb.setPFGI_pedestal)
+    widget.PC4.toggled.connect(usb.setPC4)
+    widget.PC5.toggled.connect(usb.setPC5)
+    widget.DIL_I.valueChanged.connect(usb.setDIL_I)
+    widget.DIL_T.valueChanged.connect(usb.setDIL_T)
+    widget.PFGI_Tset.valueChanged.connect(usb.setPFGI_Tset)
     widget.PFGI_TscanAmp.valueChanged.connect(usb.setPFGI_TscanAmp)
-    widget.spinBox_3.valueChanged.connect(usb.setPROM_hv)
-    widget.spinBox_4.valueChanged.connect(usb.setPROM_shift)
-    widget.spinBox_9.valueChanged.connect(usb.setFOL1_I)
-    widget.spinBox_10.valueChanged.connect(usb.setFOL1_T)
-    widget.spinBox_11.valueChanged.connect(usb.setFOL2_I)
-    widget.spinBox_12.valueChanged.connect(usb.setFOL2_T)
-    widget.spinBox_a1.valueChanged.connect(usb.setA1)
-    widget.spinBox_a2.valueChanged.connect(usb.setA2)
-    widget.spinBox_a3.valueChanged.connect(usb.setA3)
-    widget.spinBox_b1.valueChanged.connect(usb.setB1)
-    widget.spinBox_b2.valueChanged.connect(usb.setB2)
-    widget.spinBox_b3.valueChanged.connect(usb.setB3)
-    widget.spinBox_c1.valueChanged.connect(usb.setC1)
-    widget.spinBox_c2.valueChanged.connect(usb.setC2)
-    widget.spinBox_c3.valueChanged.connect(usb.setC3)
-    widget.spinBox_t1.valueChanged.connect(usb.setT1set)
-    widget.spinBox_t2.valueChanged.connect(usb.setT2set)
-    widget.spinBox_t3.valueChanged.connect(usb.setT3set)
+    widget.PROM_hv.valueChanged.connect(usb.setPROM_hv)
+    widget.PROM_shift.valueChanged.connect(usb.setPROM_shift)
+    widget.FOL1_I.valueChanged.connect(usb.setFOL1_I)
+    widget.FOL1_T.valueChanged.connect(usb.setFOL1_T)
+    widget.FOL2_I.valueChanged.connect(usb.setFOL2_I)
+    widget.FOL2_T.valueChanged.connect(usb.setFOL2_T)
+    widget.A1.valueChanged.connect(usb.setA1)
+    widget.A2.valueChanged.connect(usb.setA2)
+    widget.A3.valueChanged.connect(usb.setA3)
+    widget.B1.valueChanged.connect(usb.setB1)
+    widget.B2.valueChanged.connect(usb.setB2)
+    widget.B3.valueChanged.connect(usb.setB3)
+    widget.C1.valueChanged.connect(usb.setC1)
+    widget.C2.valueChanged.connect(usb.setC2)
+    widget.C3.valueChanged.connect(usb.setC3)
+    widget.T1set.valueChanged.connect(usb.setT1set)
+    widget.T2set.valueChanged.connect(usb.setT2set)
+    widget.T3set.valueChanged.connect(usb.setT3set)
     widget.radioButton.toggled.connect(usb.setPID)
-    widget.spinBox_TScanPeriod.valueChanged.connect(usb.setPFGI_TscanPeriod)
+    widget.PFGI_TscanPeriod.valueChanged.connect(usb.setPFGI_TscanPeriod)
     widget.checkBox_3.toggled.connect(usb.setDiode)
 
     wnd.DILTScannerWidget.top.valueChanged.connect(usb.setDIL_T_scan_top)
@@ -142,7 +142,7 @@ def convert(items):
 
 def main(test):
     configfiles = set(["settings/timescanner.ini",
-                       "settings/DIL_TScanner.ini",
+                       "settings/DIL_Tscanner.ini",
                        "settings/distancecorrector.ini",
                        "settings/settings.ini",
                        "settings/pciedevsettings.ini"
