@@ -15,13 +15,14 @@ PCIEPORT = 32120
 class PCIENetWorker(QtCore.QThread):
     measured = QtCore.pyqtSignal(pciedevsettings.PCIEResponse)
 
-    def __init__(self, parent=None):
+    def __init__(self, settings, parent=None):
         QtCore.QThread.__init__(self, parent)
         self.socket = mysocket.MySocket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.socket.connect((HOST, PCIEPORT))
         self.lock = QtCore.QMutex()
+        self.settings = settings
         self.exiting = False
         
     def setPCIESettings(self, settings):
@@ -36,14 +37,18 @@ class PCIENetWorker(QtCore.QThread):
             response.framelength = struct.unpack("H", self.socket.recvall(2))[0]
             response.framecount = struct.unpack("I", self.socket.recvall(4))[0]
             response.dacdata = struct.unpack("I", self.socket.recvall(4))[0]
-            datasize = pciedevsettings.PCIESettings.MaxFrameLenght
+            datasize = pciedevsettings.MAX_FRAME_LENGTH
             rawdata = self.socket.recvall(datasize, timeout=5)
-            
+           
+            dacdata = pciedevsettings.dacdata(ch1amp=self.settings["ch1amp"],
+                                              ch1shfit=self.settings["ch1shift"],
+                                              ch2amp=self.settings["ch2amp"],
+                                              ch2shift=self.settings["ch2shift"])  
             self.lock.lock()
             self.socket.sendall(struct.pack("B", int(channel)))
-            self.socket.sendall(struct.pack("H", int(self.settings.framelength)))
-            self.socket.sendall(struct.pack("I", self.settings.framecount))
-            self.socket.sendall(struct.pack("I", self.settings.dacdata))
+            self.socket.sendall(struct.pack("H", int(self.settings["framelength"])))
+            self.socket.sendall(struct.pack("I", self.settings["framecount"]))
+            self.socket.sendall(struct.pack("I", dacdata))
             self.lock.unlock()
             
             data = array.array("I")

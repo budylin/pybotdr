@@ -5,24 +5,24 @@ from mainwindow import MainWindow
 
 # this funciton supposed to run only once, so it's ok to import in it
 # it tries to open usb device
-def openUSB():
+def openUSB(usbsetting):
     try:
         from usbworker import USBWorker
     except ImportError:
         print "Failed to load module communicating with usb"
         return None
     try:
-        usb = USBWorker()
+        usb = USBWorker(usbsetting)
     except:
         print "Failed to open USB device"
         return None
     return usb
 
-def openDragon():
+def openDragon(pciesettings):
     import pcienetclient as pcie
     import socket
     try:
-        pcieClient = pcie.PCIENetWorker()
+        pcieClient = pcie.PCIENetWorker(pciesettings)
     except socket.error:
         print "Failed to connect to Dragon"
         return None
@@ -139,6 +139,23 @@ def convert(items):
         result[key] = conv
     return result
 
+def myprint(x):
+    print x
+
+
+class UpdateNotifier(object):
+    def __init__(self, settings):
+        self.settings = settings
+    def subscribe(self, group, subscriber):
+        self.subscribers[group].append(subscriber)
+    def update(self, group, diff):
+        if diff[0] in self.settings[group]:
+            self.settings[group][diff[0]] = diff[0]
+            for subscriber in subscribers:
+                subscriber(diff)
+
+def recieveupdates(state, wnd):
+    wnd.usbWidget.updated.connect(lambda diff: state.update("USB", diff))
 
 def main(test):
     configfiles = set(["settings/timescanner.ini",
@@ -154,12 +171,18 @@ def main(test):
     app = QtGui.QApplication(sys.argv)
     wnd = MainWindow()
 
-    wnd.pcieWidget.setstate(convert(config.items("PCIE")))
-    wnd.DILTScannerWidget.setstate(convert(config.items("DIL_TScanner")))
-    wnd.scannerWidget.setstate(convert(config.items("TimeScanner")))
-    wnd.correctorWidget.setstate(convert(config.items("DistanceCorrector")))
-    wnd.usbWidget.setstate(convert(config.items("General")))
+    groups = config.sections()
+    settings = dict([(section, convert(config.items(section))) for section in config.sections()])
+    state = UpdateNotifier(settings)
+    print settings["USB"]
+    wnd.pcieWidget.setstate(settings["PCIE"])
+    wnd.DILTScannerWidget.setstate(settings["DIL_TScanner"])
+    wnd.scannerWidget.setstate(settings["TimeScanner"])
+    wnd.correctorWidget.setstate(settings["DistanceCorrector"])
+    wnd.usbWidget.setstate(settings["USB"])
 
+    recieveupdates(state, wnd)
+    wnd.usbWidget.updated.connect(myprint)
     if test:
         framelength = wnd.pcieWidget.framelength.value()
         ndots = wnd.DILTScannerWidget.nsteps.value()
@@ -170,15 +193,14 @@ def main(test):
         btn.clicked.connect(lambda: x.toggle())
 
     else:
-        usb = openUSB()
+        usb = openUSB(settings["USB"])
         if usb:
             connectUSB(usb, wnd)
 
-        dragon = openDragon()
+        dragon = openDragon(settings["PCIE"])
         if dragon:
             connectDragon(dragon, wnd)
             # TODO setting should be stored not in widget
-            dragon.setPCIESettings(wnd.pcieWidget.value())
             dragon.start()
 
 

@@ -2,7 +2,6 @@ from PyQt4 import Qt, QtCore, QtGui, uic, Qwt5 as Qwt
 from collector import Collector
 import  pciedevsettings
 import plots
-from usbdev import USBSettings
 import time
 import scanner
 from datetime import datetime
@@ -85,6 +84,8 @@ class MainWindow(Base, Form):
 
         self.plots.addWidget(self.graphTabs, 0,0,1,1)
 
+#TODO: Further init code does not describe window but program logic.
+# It should be separated.
 
         self.collector = Collector(65520, self.scannerWidget.nsteps.value())
         self.memoryupdater = MemoryUpdater(self)
@@ -473,29 +474,44 @@ class MainWindow(Base, Form):
 
 class Statable(object):
     def setstate(self, state):
-        for key in self.valueable:
+        for key in self.valueables:
             self.__dict__[key].setValue(state[key])
-        for key in self.checkable:
+            print key, state[key]
+        for key in self.checkables:
             self.__dict__[key].setChecked(state[key])
 
     def getstate(self):
-        return dict(zip(self.valueable, [self.__dict__[key].value() for key in self.valueable]))
+        return dict(zip(self.valueables, [self.__dict__[key].value() for key in self.valueables]))
 
+def connect_update(obj):
+    for valueable in obj.valueables:
+        getattr(obj, valueable).valueChanged.connect( 
+                    lambda value, name=valueable: obj.updated.emit((name, value)))
+# made the code work properly, do not really unsderstand default argument. 
+# here is equivalent:
+# code = """obj.{name}.valueChanged.connect(
+#               lambda value: obj.updated.emit(('{name}', value)))"""
+# eval(code.format(name=valueable), dict(obj=obj))
+    for checkable in obj.checkables:
+        obj.__dict__[checkable].toggled.connect(
+                    lambda checked, name=checkable: obj.updated.emit((name, checked)))
 
+ 
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
 class USBWidget(BaseUSB, FormUSB, Statable):
-    valuesChanged = QtCore.pyqtSignal(USBSettings)
+    updated = QtCore.pyqtSignal(tuple)
 
-    valueable = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3",
+    valueables = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3",
                  "T1set", "T2set", "T3set", "PFGI_amplitude",
                  "PFGI_pedestal", "PROM_hv", "PROM_shift",
                  "DIL_I", "DIL_T", "PFGI_Tset", "PFGI_TscanAmp",
                  "PFGI_TscanPeriod", "FOL1_I", "FOL1_T", "FOL2_I", "FOL2_T"]
-    checkable = ["PC4", "PC5"]
+    checkables = ["PC4", "PC5"]
 
     def __init__(self, parent=None):
         super(BaseUSB, self).__init__(parent)
         self.setupUi(self)
+	connect_update(self)
 
     def showResponse(self, response):
         self.label_t1.setText(str(response.T1))
@@ -516,16 +532,16 @@ import pickle
 
 DragomBase, DragonForm = uic.loadUiType("dragon.ui")
 class DragonWidget(DragomBase, DragonForm, Statable):
-    valueChanged = QtCore.pyqtSignal(pciedevsettings.PCIESettings)
+    updated = QtCore.pyqtSignal(tuple)
 
-    valueable = ["ch1amp", "ch1shift", "ch1count", "ch2amp",
+    valueables = ["ch1amp", "ch1shift", "ch1count", "ch2amp",
                  "ch2count", "ch2shift", "framelength", "framecount"]
-    checkable = []
+    checkables = []
 
     def __init__(self, parent=None):
         super(DragomBase, self).__init__(parent)
         self.setupUi(self)
-
+        connect_update(self)
         self._value = self.value()
         for widget in [ self.ch1amp, self.ch1shift, self.ch1count,
                         self.ch2amp, self.ch2count, self.ch2shift,
@@ -539,7 +555,7 @@ class DragonWidget(DragomBase, DragonForm, Statable):
             self.framelength.setValue(val // 6 * 6)
 
     def value(self):
-        return pciedevsettings.PCIESettings(
+        return dict(
             ch1amp = self.ch1amp.value(),
             ch1count = self.ch1count.value(),
             ch1shift = self.ch1shift.value(),
@@ -553,19 +569,19 @@ class DragonWidget(DragomBase, DragonForm, Statable):
         val = self.value()
         if val != self._value:
             self._value = val
-            self.valueChanged.emit(val)
 
 
 ScannerBase, ScannerForm = uic.loadUiType("timescanner.ui")
 class ScannerWidget(ScannerBase, ScannerForm, Statable):
     dtChanged = QtCore.pyqtSignal(float)
-    valueable = ["top", "bottom", "averageNumber", "nsteps"]
-    checkable = []
+    updated = QtCore.pyqtSignal(tuple)
+    valueables = ["top", "bottom", "averageNumber", "nsteps"]
+    checkables = []
 
     def __init__(self, parent=None, name="timescaner"):
         super(ScannerBase, self).__init__(parent)
         self.setupUi(self)
-
+        connect_update(self)
         self.textabel = ["position"]
 
         dt_emitter = lambda x: self.dtChanged.emit(self.dt())
@@ -579,9 +595,10 @@ class ScannerWidget(ScannerBase, ScannerForm, Statable):
 
 CorrectorBase, CorrectorForm = uic.loadUiType("distancecorrector.ui")
 class CorrectorWidget(CorrectorBase, CorrectorForm, Statable):
-    valueable = ["channel", "distance", "A"]
-    checkable = ["enabled"]
+    updated = QtCore.pyqtSignal(tuple)
+    valueables = ["channel", "distance", "A"]
+    checkables = ["enabled"]
     def __init__(self, parent=None):
         super(CorrectorBase, self).__init__(parent)
         self.setupUi(self)
-
+        connect_update(self)

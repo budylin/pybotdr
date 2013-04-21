@@ -1,221 +1,149 @@
 import array
-from PyQt4.QtCore import QObject, QSettings, pyqtSignal
 
-class USBSettings(QObject):
-    valueChanged = pyqtSignal()
-    def __init__(self, parent=None):
-        QObject.__init__(self, parent)
+class USBSettings(object):
+    def __init__(self, values):
         self.buffer = array.array("B")
         self.buffer.fromlist([0] * 64)
-        self.file = QSettings("settings.ini", QSettings.IniFormat)
         
         #HACK
-        for name in self.file.allKeys():
-            name = str(name)
-            method = getattr(self, "set" + name)
-            if name in ["PC4", "PC5"]:
-                method(self.file.value(name).toBool())
-            else:
-                method(self.file.value(name).toInt()[0])
-    
+        for name, val in values.iteritems():
+            getattr(self, "set" + name)(val)
+ 
     def setPROM_hv(self, arg1):
         self.buffer[0]=arg1>>8;
         self.buffer[1]=arg1&255;
-        self.file.setValue("PROM_hv", arg1)
-        self.valueChanged.emit()
 
     def setFOL2_I(self, arg1):
         self.buffer[2]=arg1>>8
         self.buffer[3]=arg1&255
-        self.file.setValue("FOL2_I", arg1)
-        self.valueChanged.emit()
     
     def setFOL2_T(self, arg1):
         self.buffer[4]=arg1>>8
         self.buffer[5]=arg1&255
-        self.file.setValue("FOL2_T", arg1)
-        self.valueChanged.emit()
 
     def setFOL1_I(self, arg1):
         self.buffer[6]=arg1>>8
         self.buffer[7]=arg1&255
-        self.file.setValue("FOL1_I", arg1)
-        self.valueChanged.emit()
     
     def setDIL_I(self, arg1):
         self.buffer[8]=arg1>>8
         self.buffer[9]=arg1&255
-        self.file.setValue("DIL_I", arg1)
-        self.valueChanged.emit()
     
     def setDIL_T(self, arg1):
         self.buffer[10]=arg1>>8
         self.buffer[11]=arg1&255
-        self.file.setValue("DIL_T", arg1)
-        self.valueChanged.emit()
     
     def setFOL1_T(self, arg1):
         self.buffer[12]=arg1>>8
         self.buffer[13]=arg1&255
-        self.file.setValue("FOL1_T", arg1)
-        self.valueChanged.emit()
     
     def setPROM_shift(self, arg1):
         self.buffer[14]=arg1>>8
         self.buffer[15]=arg1&255
-        self.file.setValue("PROM_shift", arg1)
-        self.valueChanged.emit()
     
     def setPC4(self, checked):
         self.buffer[16]=int(checked)
-        self.file.setValue("PC4", checked)
-        self.valueChanged.emit()
     
     def setPC5(self, checked):
         self.buffer[17]=int(checked)
-        self.file.setValue("PC5", checked)
-        self.valueChanged.emit()
     
     def setPFGI_amplitude(self, arg1):
         self.buffer[18]=arg1>>8
         self.buffer[19]=arg1&255
-        self.file.setValue("PFGI_amplitude", arg1)
-        self.valueChanged.emit()
     
     def setPFGI_pedestal(self, arg1):
         self.buffer[20]=arg1>>8
         self.buffer[21]=arg1&255
-        self.file.setValue("PFGI_pedestal", arg1)
-        self.valueChanged.emit()
     
     def setPFGI_Tset(self, arg1):
         self.buffer[22]=arg1>>8
         self.buffer[23]=arg1&255
-        self.file.setValue("PFGI_Tset", arg1)
-        self.valueChanged.emit()
 
     def setPFGI_TscanAmp(self, arg1):
         self.buffer[24]=arg1>>8
         self.buffer[25]=arg1&255
-        self.file.setValue("PFGI_TscanAmp", arg1)
-        self.valueChanged.emit()
 
     def setA1(self, arg1):
-        self.file.setValue("A1", arg1)
         arg1+=32768
         self.buffer[26]=arg1>>8
         self.buffer[27]=arg1&255
-        self.valueChanged.emit()
 
     def setA2(self, arg1):
-        self.file.setValue("A2", arg1)
         arg1+=32768
         self.buffer[28]=arg1>>8
         self.buffer[29]=arg1&255
-        self.valueChanged.emit()
 
     def setA3(self, arg1):
-        self.file.setValue("A3", arg1)
         arg1+=32768
         self.buffer[30]=arg1>>8
         self.buffer[31]=arg1&255
-        self.valueChanged.emit()
 
     def setB1(self, arg1):
-        self.file.setValue("B1", arg1)
         arg1+=32768
         self.buffer[32]=arg1>>8
         self.buffer[33]=arg1&255
-        self.valueChanged.emit()
 
     def setB2(self, arg1):
-        self.file.setValue("B2", arg1)
         arg1+=32768
         self.buffer[34]=arg1>>8
         self.buffer[35]=arg1&255
-        self.valueChanged.emit()
 
     def setB3(self, arg1):
-        self.file.setValue("B3", arg1)
         arg1+=32768
         self.buffer[36]=arg1>>8
         self.buffer[37]=arg1&255
-        self.valueChanged.emit()
 
     def setC1(self, arg1):
-        self.file.setValue("C1", arg1)
         arg1+=32768
         self.buffer[38]=arg1>>8
         self.buffer[39]=arg1&255
-        self.valueChanged.emit()
 
     def setC2(self, arg1):
-        self.file.setValue("C2", arg1)
         arg1+=32768
         self.buffer[40]=arg1>>8
         self.buffer[41]=arg1&255
-        self.valueChanged.emit()
 
     def setC3(self, arg1):
-        self.file.setValue("C3", arg1)
         arg1+=32768
         self.buffer[42]=arg1>>8
         self.buffer[43]=arg1&255
-        self.valueChanged.emit()
 
     def setT1set(self, arg1):
         self.buffer[44]=arg1>>8
         self.buffer[45]=arg1&255
-        self.file.setValue("T1set", arg1)
-        self.valueChanged.emit()
 
     def setT2set(self, arg1):
         self.buffer[46]=arg1>>8
         self.buffer[47]=arg1&255
-        self.file.setValue("T2set", arg1)
-        self.valueChanged.emit()
 
     def setT3set(self, arg1):
         self.buffer[48]=arg1>>8
         self.buffer[49]=arg1&255
-        self.file.setValue("T3set", arg1)
-        self.valueChanged.emit()
 
     def setPID(self, checked):
         self.buffer[50]=int(checked)
-        self.valueChanged.emit()
 
     def setPFGI_TscanPeriod(self, arg1):
         self.buffer[51]=arg1>>8
         self.buffer[52]=arg1&255
-        self.file.setValue("PFGI_TscanPeriod", arg1)
-        self.valueChanged.emit()
 
     def setDiode(self, checked):
         self.buffer[53]=int(checked)
-        self.valueChanged.emit()
     
     def setDIL_T_scan_time(self, sec):
         self.buffer[60] = sec >> 8
         self.buffer[61] = sec & 255
-        self.file.setValue("DIL_T_scan_time", sec)
-        self.valueChanged.emit()
 
     def setDIL_T_scan_bottom(self, val):
         self.buffer[55] = val >> 8
         self.buffer[56] = val & 255
-        self.file.setValue("DIL_T_scan_bottom", val)
-        self.valueChanged.emit()
 
     def setDIL_T_scan_top(self, val):
         self.buffer[57] = val >> 8
         self.buffer[58] = val & 255
-        self.file.setValue("DIL_T_scan_top", val)
-        self.valueChanged.emit()
 
     def setDIL_T_scan_state(self, val):
         self.buffer[59] = val
-        self.valueChanged.emit()
 
 
        

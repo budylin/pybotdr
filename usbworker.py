@@ -6,19 +6,13 @@ PID = 0x5797
 VID = 0x0483
 INTERFACE = 1
 
-class USBWorker(QtCore.QThread):
+class USBWorker(QtCore.QObject):
     measured = QtCore.pyqtSignal(usbdev.USBResponse)
     statusChanged = QtCore.pyqtSignal(str)
-    def __init__(self, parent=None):
-        QtCore.QThread.__init__(self, parent)
+    def __init__(self, usbsettings, parent=None):
+        QtCore.QObject.__init__(self, parent)
         self.usbDevice = USBDevice(pid=PID, vid=VID, interface_id=INTERFACE)
-
-        self.usbSettings = usbdev.USBSettings()
-        self._stackedsettings = None
-        self.lock = QtCore.QMutex()
-        self.exiting = False
-        self.stackcounter = 0
-        self.running = False
+        self.usbSettings = usbdev.USBSettings(usbsettings)
         self.debugprintcounter = 0
     
     def __getattr__(self, name):
