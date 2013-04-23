@@ -30,34 +30,7 @@ def openDragon(pciesettings):
 
 def connectUSBManualControl(usb, wnd):
     widget = wnd.usbWidget
-    widget.PFGI_amplitude.valueChanged.connect(usb.setPFGI_amplitude)
-    widget.PFGI_pedestal.valueChanged.connect(usb.setPFGI_pedestal)
-    widget.PC4.toggled.connect(usb.setPC4)
-    widget.PC5.toggled.connect(usb.setPC5)
-    widget.DIL_I.valueChanged.connect(usb.setDIL_I)
-    widget.DIL_T.valueChanged.connect(usb.setDIL_T)
-    widget.PFGI_Tset.valueChanged.connect(usb.setPFGI_Tset)
-    widget.PFGI_TscanAmp.valueChanged.connect(usb.setPFGI_TscanAmp)
-    widget.PROM_hv.valueChanged.connect(usb.setPROM_hv)
-    widget.PROM_shift.valueChanged.connect(usb.setPROM_shift)
-    widget.FOL1_I.valueChanged.connect(usb.setFOL1_I)
-    widget.FOL1_T.valueChanged.connect(usb.setFOL1_T)
-    widget.FOL2_I.valueChanged.connect(usb.setFOL2_I)
-    widget.FOL2_T.valueChanged.connect(usb.setFOL2_T)
-    widget.A1.valueChanged.connect(usb.setA1)
-    widget.A2.valueChanged.connect(usb.setA2)
-    widget.A3.valueChanged.connect(usb.setA3)
-    widget.B1.valueChanged.connect(usb.setB1)
-    widget.B2.valueChanged.connect(usb.setB2)
-    widget.B3.valueChanged.connect(usb.setB3)
-    widget.C1.valueChanged.connect(usb.setC1)
-    widget.C2.valueChanged.connect(usb.setC2)
-    widget.C3.valueChanged.connect(usb.setC3)
-    widget.T1set.valueChanged.connect(usb.setT1set)
-    widget.T2set.valueChanged.connect(usb.setT2set)
-    widget.T3set.valueChanged.connect(usb.setT3set)
     widget.radioButton.toggled.connect(usb.setPID)
-    widget.PFGI_TscanPeriod.valueChanged.connect(usb.setPFGI_TscanPeriod)
     widget.checkBox_3.toggled.connect(usb.setDiode)
 
     wnd.DILTScannerWidget.top.valueChanged.connect(usb.setDIL_T_scan_top)
@@ -87,7 +60,6 @@ def connectUSB(usb, wnd):
     connectUSBManualControl(usb, wnd)
 
 def connectDragon(dragon, wnd):
-    wnd.pcieWidget.valueChanged.connect(dragon.setPCIESettings)
     dragon.measured.connect(wnd.on_new_reflectogramm)
 
 class dummy(object):
@@ -146,44 +118,68 @@ def myprint(x):
 class UpdateNotifier(object):
     def __init__(self, settings):
         self.settings = settings
+        self.subscribers = {}
+        for group in settings.keys():
+            self.subscribers[group] = []
     def subscribe(self, group, subscriber):
         self.subscribers[group].append(subscriber)
     def update(self, group, diff):
         if diff[0] in self.settings[group]:
             self.settings[group][diff[0]] = diff[0]
-            for subscriber in subscribers:
+            for subscriber in self.subscribers[group]:
                 subscriber(diff)
 
-def recieveupdates(state, wnd):
-    wnd.usbWidget.updated.connect(lambda diff: state.update("USB", diff))
+def recieveupdates(state, widgets):
+    for section in state.settings:
+        widgets[section].updated.connect(
+            lambda diff, name=section: state.update(name, diff))
+
+def updateconfig(config, section, update):
+    config.set(section, update[0], str(update[1]))
+    config.write(open("settings/all.ini", "w"))
 
 def main(test):
-    configfiles = set(["settings/timescanner.ini",
-                       "settings/DIL_Tscanner.ini",
-                       "settings/distancecorrector.ini",
-                       "settings/settings.ini",
-                       "settings/pciedevsettings.ini"
-                       ])
+    configfiles = set(["settings/all.ini" ])
     config = ConfigParser.ConfigParser()
     config.optionxform = str
     parsedfiles = config.read(configfiles)
     print parsedfiles, config.sections()
-    app = QtGui.QApplication(sys.argv)
-    wnd = MainWindow()
-
+    
     groups = config.sections()
     settings = dict([(section, convert(config.items(section))) for section in config.sections()])
     state = UpdateNotifier(settings)
-    print settings["USB"]
-    wnd.pcieWidget.setstate(settings["PCIE"])
-    wnd.DILTScannerWidget.setstate(settings["DIL_TScanner"])
-    wnd.scannerWidget.setstate(settings["TimeScanner"])
-    wnd.correctorWidget.setstate(settings["DistanceCorrector"])
-    wnd.usbWidget.setstate(settings["USB"])
+    app = QtGui.QApplication(sys.argv)
+    wnd = MainWindow(state)
+    widgets = dict(PCIE=wnd.pcieWidget,
+                   USB=wnd.usbWidget,
+                   DIL_TScanner=wnd.DILTScannerWidget,
+                   TimeScanner=wnd.scannerWidget,
+                   DistanceCorrector=wnd.correctorWidget)
+    for section in state.settings.keys():
+        widgets[section].setstate(settings[section])
 
-    recieveupdates(state, wnd)
-    wnd.usbWidget.updated.connect(myprint)
-    if test:
+    recieveupdates(state, widgets)
+    state.subscribe("USB", myprint)
+    state.subscribe("PCIE", myprint)
+    for section in state.settings.keys():
+        state.subscribe(section, 
+                        lambda diff, sect=section: updateconfig(config, sect, diff))
+
+#    wnd.usbWidget.updated.connect(myprint)
+    if not test:
+        usb = openUSB(settings["USB"])
+        if usb:
+            connectUSB(usb, wnd)
+            state.subscribe("USB", usb.update)
+
+        dragon = openDragon(settings["PCIE"])
+        if dragon:
+            connectDragon(dragon, wnd)
+            state.subscribe("PCIE", dragon.update)
+            # TODO setting should be stored not in widget
+            dragon.start()
+
+    else:
         framelength = wnd.pcieWidget.framelength.value()
         ndots = wnd.DILTScannerWidget.nsteps.value()
         x = dummy(framelength, ndots)
@@ -192,20 +188,10 @@ def main(test):
         x.timer.timeout.connect(lambda: wnd.on_new_reflectogramm(x.ref()))
         btn.clicked.connect(lambda: x.toggle())
 
-    else:
-        usb = openUSB(settings["USB"])
-        if usb:
-            connectUSB(usb, wnd)
-
-        dragon = openDragon(settings["PCIE"])
-        if dragon:
-            connectDragon(dragon, wnd)
-            # TODO setting should be stored not in widget
-            dragon.start()
-
 
     wnd.show()
     sys.exit(app.exec_())
+    config.write()
 
 if __name__ == "__main__":
     import argparse

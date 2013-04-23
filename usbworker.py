@@ -14,7 +14,10 @@ class USBWorker(QtCore.QObject):
         self.usbDevice = USBDevice(pid=PID, vid=VID, interface_id=INTERFACE)
         self.usbSettings = usbdev.USBSettings(usbsettings)
         self.debugprintcounter = 0
-    
+
+    def update(self, diff):
+        getattr(self, 'set' + diff[0])(diff[1])
+
     def __getattr__(self, name):
         def func(*args):
             

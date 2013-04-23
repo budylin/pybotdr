@@ -13,8 +13,9 @@ from sender import Sender
 import secondary
 import numpy as np
 STARTING_N_SP_DOT = 100
-EXTERNAL_STABILIZATION_TIME = 5 * 60
-INNER_STABILIZATION_TIME = 1
+EXTERNAL_STABILIZATION_TIME = 20
+SCAN_STEP = 20
+INNER_STABILIZATION_TIME = 1. / 100. * SCAN_STEP 
 
 Base, Form = uic.loadUiType("window.ui")
 class MainWindow(Base, Form):
@@ -24,11 +25,11 @@ class MainWindow(Base, Form):
     setDIL_T = QtCore.pyqtSignal(int)
     setDIL_T_scan_time = QtCore.pyqtSignal(int)
     usbMeasure = QtCore.pyqtSignal()
-    def __init__(self, parent=None):
+    def __init__(self, state, parent=None):
         super(Base, self).__init__(parent)
         self.setupUi(self)
 
-
+        self.state = state
         self.nonthermo = uic.loadUi("nonthermo.ui")
         self.otherWidget = uic.loadUi("other.ui")
         self.scannerSelect = uic.loadUi("scannerselect.ui")
@@ -147,7 +148,7 @@ class MainWindow(Base, Form):
         self.status = "waiting"
         self.start = time.time()
         self.time_prev = time.time()
-        self.search_list = list(range(20000, 40000, 100))
+        self.search_list = list(range(20000, 40000, 20))
         self.resp_amp = []
         self.laserscanner = "DIL"
         self.enablePulseScanner(True)
@@ -212,29 +213,55 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget.dtChanged.connect(self.maximizer.set_dt)
         self.DILTScannerWidget.bottom.valueChanged.connect(
             self.maximizer.set_bottom)
-
+        self.otherWidget.work.toggled.connect(self.on_work)
 #        self.sender = Sender()
 #        self.correlator.submatrix_processed.connect(
 #            lambda res: self.sender.send_data(res, 0))
 
+    def on_work(self, val):
+        if not val:
+            self.status = "idle"
+        else:
+            self.status = "waiting"
 
     def on_new_reflectogramm(self, pcie_dev_response):
         data = pcie_dev_response.data
         data = data[:pcie_dev_response.framelength]
         self.dragonplot.myplot(data)
         if self.status == "waiting":
-            print "Waiting.."
-            if time.time() - self.start > EXTERNAL_STABILIZATION_TIME:
+            current = time.time() - self.collector.starttime
+            eps = 0.1
+            actual = np.logical_and(
+                     (self.collector.time >
+                     (current - 2 * EXTERNAL_STABILIZATION_TIME)),
+                     (abs(self.collector.time) > eps))
+
+            moments = self.collector.time[actual]
+            print moments
+            if (not len(moments) or
+                max(moments) - min(moments) < EXTERNAL_STABILIZATION_TIME):
+                return
+            meas1 = self.collector.temperature[actual]
+            meas2 = self.collector.temperature2[actual]
+            diff1 = abs(meas1 - self.state.settings["USB"]["T1set"])
+            diff2 = abs(meas2 - self.state.settings["USB"]["T2set"])
+
+            if max(diff1) < 10 and max(diff2) < 10:
                 self.status = "searching"
-                self.setPFGI_TscanAmp.emit(32000)
-                self.setDIL_T.emit(self.search_list[-1])
+                self.state.update("PCIE", ("framecount", 60))
+                print "Searching"
+                middle = (self.state.settings["TimeScanner"]["top"] +
+                          self.state.settings["TimeScanner"]["bottom"]) / 2
+                self.state.update("USB", ("PFGI_TscanAmp", middle))
+                self.state.update("USB", ("DIL_T", self.search_list[-1]))
 
         elif self.status == "searching":
-            print "Searching.."
             if time.time() - self.time_prev > INNER_STABILIZATION_TIME:
                 self.time_prev = time.time()
+                next_T = self.search_list.pop()
+                self.resp_amp.append((np.std(data), next_T))
                 try:
-                    next_T = self.search_list.pop()
+                    self.setDIL_T.emit(self.search_list[-1])
                 except IndexError:
                     max_dev, temperature = sorted(self.resp_amp)[-1]
                     self.setDIL_T.emit(temperature)
@@ -243,9 +270,9 @@ class MainWindow(Base, Form):
                     self.scannerWidget.accurateScan.blockSignals(True)
                     self.scannerWidget.accurateScan.setChecked(True)
                     self.scannerWidget.accurateScan.blockSignals(False)
+                    self.status = "preparing_scan"
+                    self.state.update("PCIE", ("framecount", 600))
                 else:
-                    self.resp_amp.append((np.std(data), next_T))
-                    self.setDIL_T.emit(self.search_list[-1])
                     print "Setting DIL_T to %d" % self.search_list[-1]
 
         elif self.status == "scanning":
@@ -277,7 +304,8 @@ class MainWindow(Base, Form):
                 self.correlator.process_submatrix(submatrix_to_process)
                 self.maximizer.process_submatrix(submatrix_to_process)
 #                self.chebyshev.process_submatrix(submatrix_to_process)
-
+        elif self.status == "idle":
+            pass
 
     def change_scan_time(self):
         framelength = self.pcieWidget.framelength.value()
@@ -320,7 +348,7 @@ class MainWindow(Base, Form):
             self.conttimer.setInterval(wait_time)
             self.conttimer.timeout.connect(self._cont)
             self.conttimer.start()
-            print "wait 5 sec.."
+            print "wait {} sec..".format(int(wait_time / 1000))
 
         else:
             print "stopping pulsed scan"
@@ -384,7 +412,7 @@ class MainWindow(Base, Form):
         self.plotsFreezed = not self.plotsFreezed
 
     def _cont(self):
-        print "started"
+        print "started scanning with continuous laser FOL"
         self.status = "scanning"
         self.laserscanner = "cont"
         self.collector.clear()
@@ -394,7 +422,7 @@ class MainWindow(Base, Form):
         self.collector.setNextIndex(self.scanner.pos)
 
     def _cont_DILT(self):
-        print "started"
+        print "started scanning with pulsed laser DIL"
         self.status = "scanning"
         self.laserscanner = "DIL"
         self.collector.clear()
@@ -542,33 +570,12 @@ class DragonWidget(DragomBase, DragonForm, Statable):
         super(DragomBase, self).__init__(parent)
         self.setupUi(self)
         connect_update(self)
-        self._value = self.value()
-        for widget in [ self.ch1amp, self.ch1shift, self.ch1count,
-                        self.ch2amp, self.ch2count, self.ch2shift,
-                        self.framelength, self.framecount]:
-            widget.valueChanged.connect(self.rereadValue)
         self.framelength.editingFinished.connect(self.selfCorrect)
 	
     def selfCorrect(self):
         val = self.framelength.value()
         if val % 6 != 0:
             self.framelength.setValue(val // 6 * 6)
-
-    def value(self):
-        return dict(
-            ch1amp = self.ch1amp.value(),
-            ch1count = self.ch1count.value(),
-            ch1shift = self.ch1shift.value(),
-            ch2amp = self.ch2amp.value(),
-            ch2count = self.ch2count.value(),
-            ch2shift = self.ch2shift.value(),
-            framelength = self.framelength.value(),
-            framecount = self.framecount.value())
-
-    def rereadValue(self):
-        val = self.value()
-        if val != self._value:
-            self._value = val
 
 
 ScannerBase, ScannerForm = uic.loadUiType("timescanner.ui")

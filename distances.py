@@ -76,6 +76,7 @@ class Maximizer(QtCore.QThread):
     def process_submatrix(self, index):
         scan = dataFromShared()[index]
         pos = self.bottom + self.dt * scan.argmax(axis=-1)
+        print "bottom:", self.bottom, "dt:", self.dt, "pos", pos
         self.measured.emit(pos)
 
     def set_dt(self, dt):

@@ -4,7 +4,7 @@ class USBSettings(object):
     def __init__(self, values):
         self.buffer = array.array("B")
         self.buffer.fromlist([0] * 64)
-        
+
         #HACK
         for name, val in values.iteritems():
             getattr(self, "set" + name)(val)
@@ -148,9 +148,9 @@ class USBSettings(object):
 
        
 
-class USBResponse(QObject):
+class USBResponse(object):
     def __init__(self, parent=None):
-        QObject.__init__(self, parent)
+        object.__init__(self)
     
     
     def frombuffer(self, buf):

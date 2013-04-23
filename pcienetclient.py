@@ -24,7 +24,12 @@ class PCIENetWorker(QtCore.QThread):
         self.lock = QtCore.QMutex()
         self.settings = settings
         self.exiting = False
-        
+
+    def update(self, diff):
+        self.lock.lock()
+        self.settings[diff[0]] = diff[1]
+        self.lock.unlock()
+
     def setPCIESettings(self, settings):
         self.lock.lock()
         self.settings = settings
@@ -41,7 +46,7 @@ class PCIENetWorker(QtCore.QThread):
             rawdata = self.socket.recvall(datasize, timeout=5)
            
             dacdata = pciedevsettings.dacdata(ch1amp=self.settings["ch1amp"],
-                                              ch1shfit=self.settings["ch1shift"],
+                                              ch1shift=self.settings["ch1shift"],
                                               ch2amp=self.settings["ch2amp"],
                                               ch2shift=self.settings["ch2shift"])  
             self.lock.lock()
