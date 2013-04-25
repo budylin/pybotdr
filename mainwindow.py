@@ -16,6 +16,8 @@ STARTING_N_SP_DOT = 100
 EXTERNAL_STABILIZATION_TIME = 20
 SCAN_STEP = 20
 INNER_STABILIZATION_TIME = 1. / 100. * SCAN_STEP 
+SCAN_LIST = list(range(20000, 40000, SCAN_STEP))
+
 
 Base, Form = uic.loadUiType("window.ui")
 class MainWindow(Base, Form):
@@ -148,12 +150,12 @@ class MainWindow(Base, Form):
         self.status = "waiting"
         self.start = time.time()
         self.time_prev = time.time()
-        self.search_list = list(range(20000, 40000, 20))
+        self.search_list = SCAN_LIST[:]
         self.resp_amp = []
         self.laserscanner = "DIL"
         self.enablePulseScanner(True)
         self.scannerSelect.pulse.toggled.connect(self.enablePulseScanner)
-        if self.scannerSelect.pulse.isChecked():
+        if not self.scannerSelect.pulse.isChecked():
             self.maximizer.set_bottom(self.scannerWidget.bottom.value())
             self.maximizer.set_dt(self.scannerWidget.dt())
         else:
@@ -210,9 +212,6 @@ class MainWindow(Base, Form):
         self.scannerWidget.dtChanged.connect(self.maximizer.set_dt)
         self.scannerWidget.bottom.valueChanged.connect(
             self.maximizer.set_bottom)
-        self.DILTScannerWidget.dtChanged.connect(self.maximizer.set_dt)
-        self.DILTScannerWidget.bottom.valueChanged.connect(
-            self.maximizer.set_bottom)
         self.otherWidget.work.toggled.connect(self.on_work)
 #        self.sender = Sender()
 #        self.correlator.submatrix_processed.connect(
@@ -223,6 +222,7 @@ class MainWindow(Base, Form):
             self.status = "idle"
         else:
             self.status = "waiting"
+            self.search_list = SCAN_LIST[:]
 
     def on_new_reflectogramm(self, pcie_dev_response):
         data = pcie_dev_response.data
@@ -273,7 +273,7 @@ class MainWindow(Base, Form):
                     self.status = "preparing_scan"
                     self.state.update("PCIE", ("framecount", 600))
                 else:
-                    print "Setting DIL_T to %d" % self.search_list[-1]
+                    print "Setting DIL_T to %d\r" % self.search_list[-1],
 
         elif self.status == "scanning":
             self.collector.appendDragonResponse(pcie_dev_response)

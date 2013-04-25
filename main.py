@@ -125,7 +125,7 @@ class UpdateNotifier(object):
         self.subscribers[group].append(subscriber)
     def update(self, group, diff):
         if diff[0] in self.settings[group]:
-            self.settings[group][diff[0]] = diff[0]
+            self.settings[group][diff[0]] = diff[1]
             for subscriber in self.subscribers[group]:
                 subscriber(diff)
 
