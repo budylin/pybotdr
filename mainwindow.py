@@ -12,6 +12,7 @@ from distancecorrector import DistanceCorrector
 from sender import Sender
 import secondary
 import numpy as np
+import sys
 STARTING_N_SP_DOT = 100
 EXTERNAL_STABILIZATION_TIME = 20
 SCAN_STEP = 20
@@ -125,15 +126,17 @@ class MainWindow(Base, Form):
 
         self.corrector = DistanceCorrector(self)
         self.connectCorrectorWidget()
-        self.corrector.setTargetDistance(self.correctorWidget.distance.value())
-        self.corrector.setA(self.correctorWidget.A.value())
-        self.corrector.setEnabled(self.correctorWidget.enabled.isChecked())
-        self.corrector.setChannel(self.correctorWidget.channel.value())
-        self.corrector.setReaction(self.usbWidget.DIL_T.value())
+        corrector_settings = state.settings["DistanceCorrector"]
+        self.corrector.setTargetDistance(corrector_settings["distance"])
+        self.corrector.setA(corrector_settings["A"])
+        self.corrector.setEnabled(corrector_settings["enabled"])
+        self.corrector.setChannel(corrector_settings["channel"])
+        self.corrector.setReaction(state.settings["USB"]["DIL_T"])
 
         self.maximizer.measured.connect(self.corrector.appendDistances)
-        self.corrector.correct.connect(self.usbWidget.DIL_T.setValue)
-        self.usbWidget.DIL_T.valueChanged.connect(self.corrector.setReaction)
+        self.corrector.correct.connect(lambda val: self.state.update("USB", ("DIL_T", val)))
+        state.subscribe("USB",
+            lambda diff: None if diff[0] != "DIL_T" else self.corrector.setReaction(diff[1]))
 
 
 
@@ -237,7 +240,6 @@ class MainWindow(Base, Form):
                      (abs(self.collector.time) > eps))
 
             moments = self.collector.time[actual]
-            print moments
             if (not len(moments) or
                 max(moments) - min(moments) < EXTERNAL_STABILIZATION_TIME):
                 return
@@ -261,10 +263,10 @@ class MainWindow(Base, Form):
                 next_T = self.search_list.pop()
                 self.resp_amp.append((np.std(data), next_T))
                 try:
-                    self.setDIL_T.emit(self.search_list[-1])
+                    self.state.update("USB", ("DIL_T", self.search_list[-1]))
                 except IndexError:
                     max_dev, temperature = sorted(self.resp_amp)[-1]
-                    self.setDIL_T.emit(temperature)
+                    self.state.update("USB", ("DIL_T", temperature))
                     print "Setting DIL_T to %d" % temperature
                     self.startaccuratetimescan(True, 25000)
                     self.scannerWidget.accurateScan.blockSignals(True)
@@ -274,6 +276,7 @@ class MainWindow(Base, Form):
                     self.state.update("PCIE", ("framecount", 600))
                 else:
                     print "Setting DIL_T to %d\r" % self.search_list[-1],
+                    sys.stdout.flush()
 
         elif self.status == "scanning":
             self.collector.appendDragonResponse(pcie_dev_response)

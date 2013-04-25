@@ -123,11 +123,13 @@ class UpdateNotifier(object):
             self.subscribers[group] = []
     def subscribe(self, group, subscriber):
         self.subscribers[group].append(subscriber)
-    def update(self, group, diff):
+    def update(self, group, diff, debugprint=False):
         if diff[0] in self.settings[group]:
             self.settings[group][diff[0]] = diff[1]
             for subscriber in self.subscribers[group]:
                 subscriber(diff)
+        if debugprint:
+            print "Update {} section {}".format(group, diff)
 
 def recieveupdates(state, widgets):
     for section in state.settings:
@@ -159,8 +161,6 @@ def main(test):
         widgets[section].setstate(settings[section])
 
     recieveupdates(state, widgets)
-    state.subscribe("USB", myprint)
-    state.subscribe("PCIE", myprint)
     for section in state.settings.keys():
         state.subscribe(section, 
                         lambda diff, sect=section: updateconfig(config, sect, diff))
