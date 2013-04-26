@@ -195,6 +195,8 @@ def main(test):
 
 if __name__ == "__main__":
     import argparse
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     parser = argparse.ArgumentParser(prog='pybotdr')
     parser.add_argument('-t', '--test', action="store_true")
     opt = parser.parse_args()
