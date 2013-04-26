@@ -99,16 +99,12 @@ class MainWindow(Base, Form):
         self.corraverager = Averager(self)
         self.connectSecondary()
         self.correlator.measured.connect(self.corraverager.appendDistances)
-        self.appraverager = Averager(self)
-#        self.approximator.measured.connect(self.appraverager.appendDistances)
 
         self.scanner = scanner.TimeScanner(n=self.scannerWidget.nsteps.value())
         self.DIL_Tscanner = scanner.TimeScanner(n=self.DILTScannerWidget.nsteps.value())
-        #self.DIL_Tscanner.changeTemperature.connect(self.usbWorker.setDIL_T)
 
         self.connectScanerWidget()
         self.connectOtherWidget()
-        #TODO: self.pushButton.clicked.connect(CLEAR_TEMP_PLOT)
 
         self.scanner.setTop(self.scannerWidget.top.value())
         self.scanner.setBottom(self.scannerWidget.bottom.value())
@@ -169,28 +165,21 @@ class MainWindow(Base, Form):
         #WARNING old code! revision may be needed
         #self.collector.reflectogrammChanged.connect(self.dragonplot.myplot)
         self.collector.spectraOnChipChanged.connect(self.spectraplot.setData)
-        #self.collector.spectraChanged.connect(mypeakdetection)
 
         # This connections must be replaced with clear code
         self.collector.sharedArrayChanged.connect(self.memoryupdater.updateShared)
         self.memoryupdater.updated.connect(self.correlator.update)
-        #self.scanner.dtChanged.connect(self.correlator.setDt)
-        #self.scanner.dtChanged.connect(self.approximator.setDt)
 
         self.memoryupdater.updateShared((self.collector.shared, (2,) + self.collector.upScanMatrix.shape))
-        #self.correlator.setDt(65535. / self.scannerWidget.nsteps.value())
         self.correlator.setDt(1.)
         self.correlator.measured.connect(self.distanceplot.myplot)
 
-        #self.approximator.measured.connect(lambda t: self.distanceplot.myplot(t, n=1))
 
         self.scannerWidget.averageNumber.valueChanged.connect(self.corraverager.setNumber)
-        self.scannerWidget.averageNumber.valueChanged.connect(self.appraverager.setNumber)
 
         self.distanceplot.d2 = lambda t: self.distanceplot.myplot(t, n=3)
         self.distanceplot.d3 = lambda t: self.distanceplot.myplot(t, n=4)
         self.corraverager.measured.connect(self.distanceplot.d2)
-        #self.appraverager.measured.connect(lambda t: self.distanceplot.myplot(t, n=3))
 
 
         self.pcieWidget.framelength.valueChanged.connect(self.collector.setReflectogrammLength)
@@ -216,9 +205,6 @@ class MainWindow(Base, Form):
         self.scannerWidget.bottom.valueChanged.connect(
             self.maximizer.set_bottom)
         self.otherWidget.work.toggled.connect(self.on_work)
-#        self.sender = Sender()
-#        self.correlator.submatrix_processed.connect(
-#            lambda res: self.sender.send_data(res, 0))
 
     def on_work(self, val):
         if not val:
@@ -303,10 +289,8 @@ class MainWindow(Base, Form):
                     self.scanner.bottom_reached):
                     submatrix_to_process = self.scanner.lastsubmatrix
             if submatrix_to_process is not None:
-#                self.approximator.process_submatrix(submatrix_to_process)
                 self.correlator.process_submatrix(submatrix_to_process)
                 self.maximizer.process_submatrix(submatrix_to_process)
-#                self.chebyshev.process_submatrix(submatrix_to_process)
         elif self.status == "idle":
             pass
 
@@ -500,7 +484,6 @@ class MainWindow(Base, Form):
         self.FOL2timer = self.startTimer(self.usbWidget.FOL2_period.value())
 
     def closeEvent(self, event):
-#        self.sender.stop()
         pass
 
 class Statable(object):
@@ -554,7 +537,7 @@ class USBWidget(BaseUSB, FormUSB, Statable):
         self.label_f1.setText(str(response.F1))
         self.label_f2.setText(str(response.F2))
         self.label_f3.setText(str(response.F3))
-        self.label_19.setText(str(response.temp_C))
+        self.label_19.setText("{0:.2f}".format(response.temp_C))
 
 import pickle
 
