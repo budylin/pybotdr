@@ -12,12 +12,14 @@ from distancecorrector import DistanceCorrector
 from sender import Sender
 import secondary
 import numpy as np
+import logic
 import sys
 STARTING_N_SP_DOT = 100
-EXTERNAL_STABILIZATION_TIME = 20
-SCAN_STEP = 20
-INNER_STABILIZATION_TIME = 1. / 100. * SCAN_STEP 
-SCAN_LIST = list(range(20000, 40000, SCAN_STEP))
+EXT_STAB_TIME = 20
+INT_STAB_RATE = 1. / 100.
+SEARCH_STEP = 100
+SEARCH_TOP = 40000
+SEARCH_BOT = 20000
 
 
 Base, Form = uic.loadUiType("window.ui")
@@ -149,7 +151,6 @@ class MainWindow(Base, Form):
         self.status = "waiting"
         self.start = time.time()
         self.time_prev = time.time()
-        self.search_list = SCAN_LIST[:]
         self.resp_amp = []
         self.laserscanner = "DIL"
         self.enablePulseScanner(True)
@@ -211,58 +212,50 @@ class MainWindow(Base, Form):
             self.status = "idle"
         else:
             self.status = "waiting"
-            self.search_list = SCAN_LIST[:]
 
     def on_new_reflectogramm(self, pcie_dev_response):
         data = pcie_dev_response.data
         data = data[:pcie_dev_response.framelength]
         self.dragonplot.myplot(data)
         if self.status == "waiting":
-            current = time.time() - self.collector.starttime
-            eps = 0.1
-            actual = np.logical_and(
-                     (self.collector.time >
-                     (current - 2 * EXTERNAL_STABILIZATION_TIME)),
-                     (abs(self.collector.time) > eps))
-
-            moments = self.collector.time[actual]
-            if (not len(moments) or
-                max(moments) - min(moments) < EXTERNAL_STABILIZATION_TIME):
-                return
-            meas1 = self.collector.temperature[actual]
-            meas2 = self.collector.temperature2[actual]
-            diff1 = abs(meas1 - self.state.settings["USB"]["T1set"])
-            diff2 = abs(meas2 - self.state.settings["USB"]["T2set"])
-
-            if max(diff1) < 10 and max(diff2) < 10:
+            t, T1, T2 = self.collector.get_actual_temperature(2 * EXT_STAB_TIME)
+            targets = [self.state.settings["USB"]["T1set"],
+                       self.state.settings["USB"]["T2set"]]
+            if logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
                 self.status = "searching"
                 self.state.update("PCIE", ("framecount", 60))
                 print "Searching"
                 middle = (self.state.settings["TimeScanner"]["top"] +
                           self.state.settings["TimeScanner"]["bottom"]) / 2
                 self.state.update("USB", ("PFGI_TscanAmp", middle))
-                self.state.update("USB", ("DIL_T", self.search_list[-1]))
+                setter = lambda x: self.state.update("USB", ("DIL_T", x))
+                dt = INT_STAB_RATE * SEARCH_STEP / 3
+                logic.init_search(SEARCH_BOT, SEARCH_TOP, SEARCH_STEP,
+                                  dt, setter)
 
         elif self.status == "searching":
-            if time.time() - self.time_prev > INNER_STABILIZATION_TIME:
-                self.time_prev = time.time()
-                next_T = self.search_list.pop()
-                self.resp_amp.append((np.std(data), next_T))
-                try:
-                    self.state.update("USB", ("DIL_T", self.search_list[-1]))
-                except IndexError:
-                    max_dev, temperature = sorted(self.resp_amp)[-1]
-                    self.state.update("USB", ("DIL_T", temperature))
-                    print "Setting DIL_T to %d" % temperature
-                    self.startaccuratetimescan(True, 25000)
-                    self.scannerWidget.accurateScan.blockSignals(True)
-                    self.scannerWidget.accurateScan.setChecked(True)
-                    self.scannerWidget.accurateScan.blockSignals(False)
-                    self.status = "preparing_scan"
-                    self.state.update("PCIE", ("framecount", 600))
-                else:
-                    print "Setting DIL_T to %d\r" % self.search_list[-1],
-                    sys.stdout.flush()
+            new_range = logic.search(data)
+            if new_range is None:
+                return
+            print "New search range", new_range
+            bot = min(new_range)
+            top = max(new_range)
+            if bot - top > 10:
+                setter = lambda x: self.state.update("USB", ("DIL_T", x))
+                step = max(1,
+                           SCAN_STEP * (bot - top) / (SEARCH_BOT - SEARCH_TOP))
+                dt = INT_STAB_RATE * step
+                logic.init_search(bot, top, step, dt, setter)
+            else:
+                mid = int((bot + top) / 2)
+                self.state.update("USB", ("DIL_T", mid))
+                self.state.update("PCIE", ("framecount", 600))
+                print "Setting DIL_T to %d" % temperature
+                self.startaccuratetimescan(True, 25000)
+                self.scannerWidget.accurateScan.blockSignals(True)
+                self.scannerWidget.accurateScan.setChecked(True)
+                self.scannerWidget.accurateScan.blockSignals(False)
+                self.status = "preparing_scan"
 
         elif self.status == "scanning":
             self.collector.appendDragonResponse(pcie_dev_response)

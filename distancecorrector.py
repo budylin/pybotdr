@@ -37,7 +37,6 @@ class DistanceCorrector(QtCore.QObject):
         self.react()
 
     def setReaction(self, reaction):
-        print "New reaction set is ", reaction
         self.reaction = reaction
 
     def react(self):

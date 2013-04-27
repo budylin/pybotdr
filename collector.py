@@ -45,11 +45,12 @@ class Collector(QtCore.QObject):
         self.reflectogrammChanged.emit(response.data[:response.framelength]) #?
         self.collected.add(scanNumber)
         #self.waitingForTemperature = True
-    
+
+    def time_from_start(self):
+        return time.time() - self.starttime
+
     def appendUSBResponse(self, response):
-        #if self.waitingForTemperature:
-        
-        self.time[self.temperatureIndex] = time.time() - self.starttime
+        self.time[self.temperatureIndex] = self.time_from_start()
         self.temperature[self.temperatureIndex] = response.T1
         self.temperature2[self.temperatureIndex] = response.T2
         self.temperatureIndex += 1
@@ -103,7 +104,22 @@ class Collector(QtCore.QObject):
         
         p = mp.Process(target=mydump, args=(up_0, down_0))
         p.start()
-    
+
+    def get_actual_temperature(self, period):
+        eps = 0.1
+        actual = np.logical_and(
+                 (self.time >
+                 (self.time_from_start() - period)),
+                 (abs(self.time) > eps))
+
+        moments = self.time[actual]
+        if len(moments) == 0:
+            return np.array([]), np.array([]), np.array([])
+        else:
+            return (moments, self.temperature[actual],
+                    self.temperature2[actual])
+
+
     def clear(self):
         self.upScanMatrix[:] = 0
         self.downScanMatrix[:] = 0
