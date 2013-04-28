@@ -19,6 +19,7 @@ class Search(object):
         self.back_max = None
         self.dt = dt
         self.prev_time = time.time()
+        self.step = step
         setter(self.iterator.next())
 
     def new_data(self, data):
@@ -33,7 +34,7 @@ class Search(object):
                 self.setter(self.iterator.next())
             except StopIteration:
                 self.iterator = iter(self.xs[::-1])
-                self.phase == "backward"
+                self.phase = "backward"
         elif self.phase == "backward":
             self.downs.append(np.std(data))
             try:
@@ -43,7 +44,12 @@ class Search(object):
                 upmax = np.argmax(self.ups)
                 downmax = np.argmax(self.downs)
                 print upmax, downmax
-                return self.xs[upmax], self.xs[downmax]
+                self.phase = "finished"
+                low = min(self.xs[upmax], self.xs[downmax]) - self.step
+                hi = max(self.xs[upmax], self.xs[downmax]) + self.step
+                return low, hi
+        elif self.phase == "finished":
+            raise StopIteration
 
 _search = None
 def init_search(beg, end, step, dt, setter):

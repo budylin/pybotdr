@@ -15,7 +15,7 @@ import numpy as np
 import logic
 import sys
 STARTING_N_SP_DOT = 100
-EXT_STAB_TIME = 20
+EXT_STAB_TIME = 10
 INT_STAB_RATE = 1. / 100.
 SEARCH_STEP = 100
 SEARCH_TOP = 40000
@@ -234,23 +234,27 @@ class MainWindow(Base, Form):
                                   dt, setter)
 
         elif self.status == "searching":
+            t, T1, T2 = self.collector.get_actual_temperature(2 * EXT_STAB_TIME)
+            targets = [self.state.settings["USB"]["T1set"],
+                       self.state.settings["USB"]["T2set"]]
+            if not logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
+                return
             new_range = logic.search(data)
             if new_range is None:
                 return
             print "New search range", new_range
-            bot = min(new_range)
-            top = max(new_range)
-            if bot - top > 10:
+            bot, top = new_range
+            if top - bot > 10:
                 setter = lambda x: self.state.update("USB", ("DIL_T", x))
                 step = max(1,
-                           SCAN_STEP * (bot - top) / (SEARCH_BOT - SEARCH_TOP))
+                           SEARCH_STEP * (bot - top) / (SEARCH_BOT - SEARCH_TOP))
                 dt = INT_STAB_RATE * step
                 logic.init_search(bot, top, step, dt, setter)
             else:
                 mid = int((bot + top) / 2)
                 self.state.update("USB", ("DIL_T", mid))
                 self.state.update("PCIE", ("framecount", 600))
-                print "Setting DIL_T to %d" % temperature
+                print "Setting DIL_T to %d" % mid
                 self.startaccuratetimescan(True, 25000)
                 self.scannerWidget.accurateScan.blockSignals(True)
                 self.scannerWidget.accurateScan.setChecked(True)
