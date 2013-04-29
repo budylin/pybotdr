@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>179</width>
-    <height>57</height>
+    <height>62</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -21,9 +21,9 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QRadioButton" name="pulse">
+    <widget class="QRadioButton" name="PFGIT">
      <property name="text">
-      <string>Scan with pulse laser</string>
+      <string>Scan with PFGIT</string>
      </property>
      <property name="checked">
       <bool>true</bool>
@@ -31,9 +31,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QRadioButton" name="cont">
+    <widget class="QRadioButton" name="DILT">
      <property name="text">
-      <string>Scan with cont laser</string>
+      <string>Scan with DILT</string>
      </property>
     </widget>
    </item>

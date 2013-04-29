@@ -7,12 +7,12 @@ Position = namedtuple("Position", "direction scannumber polarization freqindex")
 class TimeScanner(QtCore.QObject):
     scanPositionChanged = QtCore.pyqtSignal(int)
     UP, DOWN = 0, 1
-    def __init__(self, n=100, parent=None):
+    def __init__(self, settings, parent=None):
         QtCore.QObject.__init__(self, parent)
         self.direction = TimeScanner.UP
-        self.top = 65535
-        self.bot = 0
-        self.ndot = n
+        self.top = settings["top"]
+        self.bot = settings["bottom"]
+        self.ndot = settings["nsteps"]
         self.nscans = 3
         #self.period = 60 # is not used for now
         self.debugprint = False

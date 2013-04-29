@@ -131,7 +131,12 @@ class UpdateNotifier(object):
         if debugprint:
             print "Update {} section {}".format(group, diff)
 
-def recieveupdates(state, widgets):
+def recieveupdates(state, wnd):
+    widgets = dict(USB=wnd.usbWidget,
+                   PCIE=wnd.pcieWidget,
+                   DistanceCorrector=wnd.correctorWidget,
+                   TimeScanner=wnd.scannerWidget,
+                   DIL_TScanner=wnd.DILTScannerWidget)
     for section in state.settings:
         widgets[section].updated.connect(
             lambda diff, name=section: state.update(name, diff))
@@ -152,15 +157,8 @@ def main(test):
     state = UpdateNotifier(settings)
     app = QtGui.QApplication(sys.argv)
     wnd = MainWindow(state)
-    widgets = dict(PCIE=wnd.pcieWidget,
-                   USB=wnd.usbWidget,
-                   DIL_TScanner=wnd.DILTScannerWidget,
-                   TimeScanner=wnd.scannerWidget,
-                   DistanceCorrector=wnd.correctorWidget)
-    for section in state.settings.keys():
-        widgets[section].setstate(settings[section])
 
-    recieveupdates(state, widgets)
+    recieveupdates(state, wnd)
     for section in state.settings.keys():
         state.subscribe(section, 
                         lambda diff, sect=section: updateconfig(config, sect, diff))

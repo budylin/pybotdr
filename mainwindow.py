@@ -35,16 +35,18 @@ class MainWindow(Base, Form):
         self.setupUi(self)
 
         self.state = state
+        settings = state.settings
         self.nonthermo = uic.loadUi("nonthermo.ui")
         self.otherWidget = uic.loadUi("other.ui")
         self.scannerSelect = uic.loadUi("scannerselect.ui")
         self.zone = uic.loadUi("zone.ui")
-        self.usbWidget = USBWidget()
-        self.pcieWidget = DragonWidget()
-        self.correctorWidget = CorrectorWidget()
-        self.scannerWidget = ScannerWidget()
+        self.usbWidget = USBWidget(settings["USB"])
+        self.pcieWidget = DragonWidget(settings["PCIE"])
+        self.correctorWidget = CorrectorWidget(settings["DistanceCorrector"])
+        self.scannerWidget = ScannerWidget(settings["TimeScanner"])
         self.scannerWidget.groupBox.setTitle("On chip scanner")
-        self.DILTScannerWidget = ScannerWidget(name="DIL_Tscanner")
+        self.DILTScannerWidget = ScannerWidget(settings["DIL_TScanner"],
+                                               name="DIL_Tscanner")
         self.DILTScannerWidget.groupBox.setTitle("DIL_T scanner")
 
         self.scannerSelect.layout().insertWidget(1, self.scannerWidget)
@@ -93,7 +95,12 @@ class MainWindow(Base, Form):
 #TODO: Further init code does not describe window but program logic.
 # It should be separated.
 
-        self.collector = Collector(65520, self.scannerWidget.nsteps.value())
+
+        self.PFGITscanner = scanner.TimeScanner(settings["TimeScanner"])
+        self.DIL_Tscanner = scanner.TimeScanner(settings["DIL_TScanner"])
+
+
+        self.collector = Collector(65520, settings["TimeScanner"]["nsteps"])
         self.memoryupdater = MemoryUpdater(self)
         self.correlator = Correlator(self)
         self.maximizer = Maximizer(self)
@@ -101,24 +108,10 @@ class MainWindow(Base, Form):
         self.corraverager = Averager(self)
         self.connectSecondary()
         self.correlator.measured.connect(self.corraverager.appendDistances)
-
-        self.scanner = scanner.TimeScanner(n=self.scannerWidget.nsteps.value())
-        self.DIL_Tscanner = scanner.TimeScanner(n=self.DILTScannerWidget.nsteps.value())
+        self.corraverager.setNumber(settings["TimeScanner"]["averageNumber"])
 
         self.connectScanerWidget()
         self.connectOtherWidget()
-
-        self.scanner.setTop(self.scannerWidget.top.value())
-        self.scanner.setBottom(self.scannerWidget.bottom.value())
-        self.scanner.setNdot(self.scannerWidget.nsteps.value())
-
-        self.DIL_Tscanner.setTop(self.DILTScannerWidget.top.value())
-        self.DIL_Tscanner.setBottom(self.DILTScannerWidget.bottom.value())
-        self.DIL_Tscanner.setNdot(self.DILTScannerWidget.nsteps.value())
-
-
-        self.corraverager.setNumber(self.scannerWidget.averageNumber.value())
-
 
         self.spectraplot.setChannel(self.otherWidget.plotChannel.value())
 
@@ -129,7 +122,7 @@ class MainWindow(Base, Form):
         self.corrector.setA(corrector_settings["A"])
         self.corrector.setEnabled(corrector_settings["enabled"])
         self.corrector.setChannel(corrector_settings["channel"])
-        self.corrector.setReaction(state.settings["USB"]["DIL_T"])
+        self.corrector.setReaction(settings["USB"]["DIL_T"])
 
         self.maximizer.measured.connect(self.corrector.appendDistances)
         self.corrector.correct.connect(lambda val: self.state.update("USB", ("DIL_T", val)))
@@ -145,20 +138,22 @@ class MainWindow(Base, Form):
         self.collector.temperatureCurve2Changed.connect(self.temperatureplot.t1)
 
 
-        self.collector.setReflectogrammLength(self.pcieWidget.framelength.value())
+        self.collector.setReflectogrammLength(state.settings["PCIE"]["framelength"])
 
 
         self.status = "waiting"
         self.start = time.time()
         self.time_prev = time.time()
         self.resp_amp = []
-        self.laserscanner = "DIL"
-        self.enablePulseScanner(True)
-        self.scannerSelect.pulse.toggled.connect(self.enablePulseScanner)
-        if not self.scannerSelect.pulse.isChecked():
+        self.laserscanner = "PFGIT"
+        self.enablePFGITscanner(True)
+        self.scannerSelect.PFGIT.toggled.connect(self.enablePFGITscanner)
+        if self.scannerSelect.PFGIT.isChecked():
+            print "PFGIT enabled"
             self.maximizer.set_bottom(self.scannerWidget.bottom.value())
             self.maximizer.set_dt(self.scannerWidget.dt())
         else:
+            print "DILT enabled"
             self.maximizer.set_bottom(self.DILTScannerWidget.bottom.value())
             self.maximizer.set_dt(self.DILTScannerWidget.dt())
 
@@ -201,7 +196,7 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget.nsteps.valueChanged.connect(self.collector.setSpectraLength)
         self.DIL_Tscanner.scanPositionChanged.connect(self.DILTScannerWidget.position.setNum)
         self.scannerWidget.nsteps.valueChanged.connect(self.collector.setSpectraLength)
-        self.scanner.scanPositionChanged.connect(self.scannerWidget.position.setNum)
+        self.PFGITscanner.scanPositionChanged.connect(self.scannerWidget.position.setNum)
         self.scannerWidget.dtChanged.connect(self.maximizer.set_dt)
         self.scannerWidget.bottom.valueChanged.connect(
             self.maximizer.set_bottom)
@@ -255,7 +250,7 @@ class MainWindow(Base, Form):
                 self.state.update("USB", ("DIL_T", mid))
                 self.state.update("PCIE", ("framecount", 600))
                 print "Setting DIL_T to %d" % mid
-                self.startaccuratetimescan(True, 25000)
+                self.start_PFGIT_scan(True, 25000)
                 self.scannerWidget.accurateScan.blockSignals(True)
                 self.scannerWidget.accurateScan.setChecked(True)
                 self.scannerWidget.accurateScan.blockSignals(False)
@@ -264,7 +259,7 @@ class MainWindow(Base, Form):
         elif self.status == "scanning":
             self.collector.appendDragonResponse(pcie_dev_response)
             submatrix_to_process = None
-            if self.laserscanner == "DIL":
+            if self.laserscanner == "DILT":
                 self.collector.appendOnChipTemperature(
                     self.DIL_Tscanner.scan_position)
                 self.DIL_Tscanner.scan()
@@ -276,15 +271,15 @@ class MainWindow(Base, Form):
                 if (self.DIL_Tscanner.top_reached or
                     self.DIL_Tscanner.bottom_reached):
                     submatrix_to_process = self.DIL_Tscanner.lastsubmatrix
-            if self.laserscanner == "cont":
+            if self.laserscanner == "PFGIT":
                 self.collector.appendOnChipTemperature(
-                    self.scanner.scan_position)
-                self.scanner.scan()
-                self.collector.setNextIndex(self.scanner.pos)
-                self.setPFGI_TscanAmp.emit(self.scanner.targetT)
-                if (self.scanner.top_reached or
-                    self.scanner.bottom_reached):
-                    submatrix_to_process = self.scanner.lastsubmatrix
+                    self.PFGITscanner.scan_position)
+                self.PFGITscanner.scan()
+                self.collector.setNextIndex(self.PFGITscanner.pos)
+                self.setPFGI_TscanAmp.emit(self.PFGITscanner.targetT)
+                if (self.PFGITscanner.top_reached or
+                    self.PFGITscanner.bottom_reached):
+                    submatrix_to_process = self.PFGITscanner.lastsubmatrix
             if submatrix_to_process is not None:
                 self.correlator.process_submatrix(submatrix_to_process)
                 self.maximizer.process_submatrix(submatrix_to_process)
@@ -300,16 +295,16 @@ class MainWindow(Base, Form):
         self.setDIL_T_scan_time.emit(time)
 
 
-    def enablePulseScanner(self, val):
+    def enablePFGITscanner(self, val):
         self.DILTScannerWidget.setEnabled(not val)
         self.scannerWidget.setEnabled(val)
         if val:
-            print "scanning with pulse"
+            print "scanning with PFGIT"
             if self.status == "scanning":
                 self.start_DILT_scan(False)
-            self.collector.setSpectraLength(self.scanner.ndot)
+            self.collector.setSpectraLength(self.PFGITscanner.ndot)
         else:
-            print "scanning with cont"
+            print "scanning with DILT"
             self.collector.setSpectraLength(self.DIL_Tscanner.ndot)
             if self.status == "scanning":
                 self.startaccuratetimescan(False)
@@ -324,9 +319,9 @@ class MainWindow(Base, Form):
         if timer.timerId() == self.measuretimer:
             self.usbMeasure.emit()
 
-    def startaccuratetimescan(self, val, wait_time=5000):
+    def start_PFGIT_scan(self, val, wait_time=5000):
         if val:
-            self.setPFGI_TscanAmp.emit(self.scanner.bot)
+            self.setPFGI_TscanAmp.emit(self.PFGITscanner.bot)
             self.conttimer = QtCore.QTimer()
             self.conttimer.setSingleShot(True)
             self.conttimer.setInterval(wait_time)
@@ -335,7 +330,7 @@ class MainWindow(Base, Form):
             print "wait {} sec..".format(int(wait_time / 1000))
 
         else:
-            print "stopping pulsed scan"
+            print "stopping PFGIT scan"
             if not self.status == "scanning":
                 self.conttimer.timeout.disconnect(self._cont)
             else:
@@ -352,7 +347,7 @@ class MainWindow(Base, Form):
             print "wait 5 sec.."
 
         else:
-            print "stopping cont scan"
+            print "stopping DILT scan"
             if not self.status == "scanning":
                 self.conttimer.timeout.disconnect(self._cont_DILT)
             else:
@@ -370,10 +365,7 @@ class MainWindow(Base, Form):
             self.plotsOnly = True
 
     def keyPressEvent(self, event):
-        print event.key()
-        print "123"
         if event.key() == QtCore.Qt.Key_F1:
-            print "F1 pressed"
             self.freezeGraphs()
         super(Base, self).keyPressEvent(event)
 
@@ -396,17 +388,15 @@ class MainWindow(Base, Form):
         self.plotsFreezed = not self.plotsFreezed
 
     def _cont(self):
-        print "started scanning with continuous laser FOL"
+        print "started scanning with PFGIT"
         self.status = "scanning"
-        self.laserscanner = "cont"
+        self.laserscanner = "PFGIT"
         self.collector.clear()
-        print "cleared"
-        self.scanner.reset()
-        print "reset"
-        self.collector.setNextIndex(self.scanner.pos)
+        self.PFGITscanner.reset()
+        self.collector.setNextIndex(self.PFGITscanner.pos)
 
     def _cont_DILT(self):
-        print "started scanning with pulsed laser DIL"
+        print "started scanning with DILT"
         self.status = "scanning"
         self.laserscanner = "DIL"
         self.collector.clear()
@@ -417,7 +407,6 @@ class MainWindow(Base, Form):
     def processSecondary(self):
         for i in range(4):
             diff = self.secondary.diffs[i] - (i - 1.5) * 20
-            print diff
             self.diffsPlot.myplot(diff, n=i)
 
     def connectSecondary(self):
@@ -456,10 +445,10 @@ class MainWindow(Base, Form):
         self.correctorWidget.distance.valueChanged.connect(self.corrector.setTargetDistance)
 
     def connectScanerWidget(self):
-        self.scannerWidget.top.valueChanged.connect(self.scanner.setTop)
-        self.scannerWidget.bottom.valueChanged.connect(self.scanner.setBottom)
-        self.scannerWidget.nsteps.valueChanged.connect(self.scanner.setNdot)
-        self.scannerWidget.accurateScan.clicked.connect(self.startaccuratetimescan)
+        self.scannerWidget.top.valueChanged.connect(self.PFGITscanner.setTop)
+        self.scannerWidget.bottom.valueChanged.connect(self.PFGITscanner.setBottom)
+        self.scannerWidget.nsteps.valueChanged.connect(self.PFGITscanner.setNdot)
+        self.scannerWidget.accurateScan.clicked.connect(self.start_PFGIT_scan)
 
         self.DILTScannerWidget.top.valueChanged.connect(self.DIL_Tscanner.setTop)
         self.DILTScannerWidget.bottom.valueChanged.connect(self.DIL_Tscanner.setBottom)
@@ -483,16 +472,11 @@ class MainWindow(Base, Form):
     def closeEvent(self, event):
         pass
 
-class Statable(object):
-    def setstate(self, state):
-        for key in self.valueables:
-            self.__dict__[key].setValue(state[key])
-            print key, state[key]
-        for key in self.checkables:
-            self.__dict__[key].setChecked(state[key])
-
-    def getstate(self):
-        return dict(zip(self.valueables, [self.__dict__[key].value() for key in self.valueables]))
+def setstate(obj, state):
+    for key in obj.valueables:
+        obj.__dict__[key].setValue(state[key])
+    for key in obj.checkables:
+        obj.__dict__[key].setChecked(state[key])
 
 def connect_update(obj):
     for valueable in obj.valueables:
@@ -509,7 +493,7 @@ def connect_update(obj):
 
  
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
-class USBWidget(BaseUSB, FormUSB, Statable):
+class USBWidget(BaseUSB, FormUSB):
     updated = QtCore.pyqtSignal(tuple)
 
     valueables = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3",
@@ -519,10 +503,11 @@ class USBWidget(BaseUSB, FormUSB, Statable):
                  "PFGI_TscanPeriod", "FOL1_I", "FOL1_T", "FOL2_I", "FOL2_T"]
     checkables = ["PC4", "PC5"]
 
-    def __init__(self, parent=None):
+    def __init__(self, state, parent=None):
         super(BaseUSB, self).__init__(parent)
         self.setupUi(self)
-	connect_update(self)
+        setstate(self, state)
+        connect_update(self)
 
     def showResponse(self, response):
         self.label_t1.setText(str(response.T1))
@@ -542,53 +527,49 @@ import pickle
 
 
 DragomBase, DragonForm = uic.loadUiType("dragon.ui")
-class DragonWidget(DragomBase, DragonForm, Statable):
+class DragonWidget(DragomBase, DragonForm):
     updated = QtCore.pyqtSignal(tuple)
 
     valueables = ["ch1amp", "ch1shift", "ch1count", "ch2amp",
                  "ch2count", "ch2shift", "framelength", "framecount"]
     checkables = []
 
-    def __init__(self, parent=None):
+    def __init__(self, state, parent=None):
         super(DragomBase, self).__init__(parent)
         self.setupUi(self)
+        setstate(self, state)
         connect_update(self)
-        self.framelength.editingFinished.connect(self.selfCorrect)
-	
-    def selfCorrect(self):
-        val = self.framelength.value()
-        if val % 6 != 0:
-            self.framelength.setValue(val // 6 * 6)
 
 
 ScannerBase, ScannerForm = uic.loadUiType("timescanner.ui")
-class ScannerWidget(ScannerBase, ScannerForm, Statable):
+class ScannerWidget(ScannerBase, ScannerForm):
     dtChanged = QtCore.pyqtSignal(float)
     updated = QtCore.pyqtSignal(tuple)
     valueables = ["top", "bottom", "averageNumber", "nsteps"]
     checkables = []
 
-    def __init__(self, parent=None, name="timescaner"):
+    def __init__(self, state, parent=None, name="timescaner"):
         super(ScannerBase, self).__init__(parent)
         self.setupUi(self)
         connect_update(self)
         self.textabel = ["position"]
-
+        setstate(self, state)
         dt_emitter = lambda x: self.dtChanged.emit(self.dt())
         for widget in [self.top, self.bottom, self.nsteps]:
             widget.valueChanged.connect(dt_emitter)
 
     def dt(self):
         return (float(self.top.value() - self.bottom.value()) /
-              (self.nsteps.value() + 1))
+              (self.nsteps.value() - 1))
 
 
 CorrectorBase, CorrectorForm = uic.loadUiType("distancecorrector.ui")
-class CorrectorWidget(CorrectorBase, CorrectorForm, Statable):
+class CorrectorWidget(CorrectorBase, CorrectorForm):
     updated = QtCore.pyqtSignal(tuple)
     valueables = ["channel", "distance", "A"]
     checkables = ["enabled"]
-    def __init__(self, parent=None):
+    def __init__(self, state, parent=None):
         super(CorrectorBase, self).__init__(parent)
         self.setupUi(self)
+        setstate(self, state)
         connect_update(self)
