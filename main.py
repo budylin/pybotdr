@@ -140,6 +140,7 @@ def recieveupdates(state, wnd):
     for section in state.settings:
         widgets[section].updated.connect(
             lambda diff, name=section: state.update(name, diff))
+        state.subscribe(section, widgets[section].update_state)
 
 def updateconfig(config, section, update):
     config.set(section, update[0], str(update[1]))
