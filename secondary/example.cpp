@@ -4,15 +4,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "example.h"
-/*
+
+#ifdef SECONDARY
 #include "./bsensor/btest/bsensor.h"
 #include "./bsensor/btest/DDUtils.h"
-*/
+#endif /* SECONDARY */
+
 #define FILTERSCOUNT 12
 #define DECAYSCOUNT 4
 #define LEVELSCOUNT 3
-//#define NORMALIZE 1
-#undef SECONDARY
 
 struct context_t {
     unsigned start;
@@ -174,7 +174,7 @@ process(void *context, double *array, char *out, double *diffs)
 {
     context_t *ctx = (context_t *)context;
     double sigma;
-#if SECONDARY
+#ifdef SECONDARY
     DSensorDataRecord *record;
 #endif
     int i, j, k, z;
@@ -217,7 +217,7 @@ process(void *context, double *array, char *out, double *diffs)
             sigma = dispersion(ctx->tmp, ctx->tmp2);
             std::copy(ctx->tmp.begin(), ctx->tmp.end(),
                       diffs + j * ctx->n_channel);
-#if SECONDARY
+#ifdef SECONDARY
             for (k = 0; k < LEVELSCOUNT; k++)
             {
                 z = j + k * DECAYSCOUNT;
@@ -232,7 +232,9 @@ process(void *context, double *array, char *out, double *diffs)
 #endif
         }
         ctx->prev.assign(ctx->current.begin(), ctx->current.end());
-//        addNewMeasure(ctx->sensor, record);
+#ifdef SECONDARY
+        addNewMeasure(ctx->sensor, record);
+#endif /* SECONDARY */
     }
 }
 
