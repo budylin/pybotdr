@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "example.h"
+#include "secondary.h"
 /*
 #include "./bsensor/btest/bsensor.h"
 #include "./bsensor/btest/DDUtils.h"

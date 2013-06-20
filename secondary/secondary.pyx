@@ -9,7 +9,7 @@ INT = np.int
 ctypedef np.int_t INT_t
 
 
-cdef extern from "example.h" nogil:
+cdef extern from "secondary.h" nogil:
     void *create_context(unsigned start, unsigned n_channel, int window_width,
                          double *decays, double *levels)
     void free_context(void *context)

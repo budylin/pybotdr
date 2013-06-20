@@ -3,13 +3,13 @@ BSENSOR = -L./bsensor/btest
 
 all: pysecondary.so libsecondary.so
 
-example.o: example.cpp example.h
-	g++  -std=c++0x -O2  -ffast-math -mfpmath=sse -g -fpic -c -Wall -Wextra -pedantic -Winline  example.cpp
+secondary.o: secondary.cpp secondary.h
+	g++  -std=c++0x -O2  -ffast-math -mfpmath=sse -g -fpic -c -Wall -Wextra -pedantic -Winline  secondary.cpp
 
-libsecondary.so: example.o 
-	g++  -std=c++0x -O2  -ffast-math -mfpmath=sse -g -shared -o libsecondary.so -fpic example.o 
+libsecondary.so: secondary.o 
+	g++  -std=c++0x -O2  -ffast-math -mfpmath=sse -g -shared -o libsecondary.so -fpic secondary.o 
  
-pysecondary.so: libsecondary.so example.h secondary_setup.py secondary.pyx
+pysecondary.so: libsecondary.so secondary.h secondary_setup.py secondary.pyx
 	CC=gcc python secondary_setup.py build_ext --inplace
 
 c_test: libsecondary.so c_test.c
