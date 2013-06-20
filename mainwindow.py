@@ -14,6 +14,14 @@ import secondary
 import numpy as np
 import logic
 import sys
+try:
+    import interaction
+    is_interactive = True
+except ImportError:
+    print "Failed to establish interaction with data-server"
+    is_interactive = False
+
+
 STARTING_N_SP_DOT = 100
 EXT_STAB_TIME = 10
 INT_STAB_RATE = 1. / 100.
@@ -105,6 +113,8 @@ class MainWindow(Base, Form):
         self.correlator = Correlator(self)
         self.maximizer = Maximizer(self)
         self.secondary = secondary.Model()
+        if is_interactive:
+            self.interaction = interaction.Model()
         self.corraverager = Averager(self)
         self.connectSecondary()
         self.correlator.measured.connect(self.corraverager.appendDistances)
@@ -408,6 +418,8 @@ class MainWindow(Base, Form):
         for i in range(4):
             diff = self.secondary.diffs[i] - (i - 1.5) * 20
             self.diffsPlot.myplot(diff, n=i)
+        if is_interactive:
+            self.interaction(self.secondary.out)
 
     def connectSecondary(self):
         self.corraverager.measured.connect(lambda x: self.secondary(x[0]))
@@ -480,9 +492,9 @@ def setstate(obj, state):
 
 def connect_update(obj):
     for valueable in obj.valueables:
-        getattr(obj, valueable).valueChanged.connect( 
+        getattr(obj, valueable).valueChanged.connect(
                     lambda value, name=valueable: obj.updated.emit((name, value)))
-# made the code work properly, do not really unsderstand default argument. 
+# made the code work properly, do not really unsderstand default argument.
 # here is equivalent:
 # code = """obj.{name}.valueChanged.connect(
 #               lambda value: obj.updated.emit(('{name}', value)))"""
@@ -491,7 +503,7 @@ def connect_update(obj):
         obj.__dict__[checkable].toggled.connect(
                     lambda checked, name=checkable: obj.updated.emit((name, checked)))
 
- 
+
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
 class USBWidget(BaseUSB, FormUSB):
     updated = QtCore.pyqtSignal(tuple)

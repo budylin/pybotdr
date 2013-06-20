@@ -217,6 +217,17 @@ process(void *context, double *array, char *out, double *diffs)
             sigma = dispersion(ctx->tmp, ctx->tmp2);
             std::copy(ctx->tmp.begin(), ctx->tmp.end(),
                       diffs + j * ctx->n_channel);
+            for (k = 0; k < LEVELSCOUNT; k++)
+            {
+                z = j + k * DECAYSCOUNT;
+                std::transform(ctx->tmp.begin(),
+                    ctx->tmp.end(),
+                    out + z * ctx->n_channel,
+                    [&](double x) -> char
+                    {
+                        return (char)(fabs(x) > sigma * ctx->levels[k]);
+                    });
+            }
 #if SECONDARY
             for (k = 0; k < LEVELSCOUNT; k++)
             {
