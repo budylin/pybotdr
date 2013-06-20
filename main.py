@@ -52,7 +52,6 @@ def connectUSB(usb, wnd):
     wnd.startUpScan.connect(usb.start_up_scan)
     wnd.startDownScan.connect(usb.start_down_scan)
 
-    wnd.setPFGI_TscanAmp.connect(usb.setPFGI_TscanAmp)
     wnd.setDIL_T.connect(usb.setDIL_T)
     wnd.setDIL_T_scan_time.connect(usb.setDIL_T_scan_time)
     wnd.usbMeasure.connect(usb.measure)
@@ -140,6 +139,7 @@ def recieveupdates(state, wnd):
     for section in state.settings:
         widgets[section].updated.connect(
             lambda diff, name=section: state.update(name, diff))
+        state.subscribe(section, widgets[section].update_state)
 
 def updateconfig(config, section, update):
     config.set(section, update[0], str(update[1]))

@@ -34,7 +34,6 @@ Base, Form = uic.loadUiType("window.ui")
 class MainWindow(Base, Form):
     startUpScan = QtCore.pyqtSignal()
     startDownScan = QtCore.pyqtSignal()
-    setPFGI_TscanAmp = QtCore.pyqtSignal(int)
     setDIL_T = QtCore.pyqtSignal(int)
     setDIL_T_scan_time = QtCore.pyqtSignal(int)
     usbMeasure = QtCore.pyqtSignal()
@@ -286,7 +285,7 @@ class MainWindow(Base, Form):
                     self.PFGITscanner.scan_position)
                 self.PFGITscanner.scan()
                 self.collector.setNextIndex(self.PFGITscanner.pos)
-                self.setPFGI_TscanAmp.emit(self.PFGITscanner.targetT)
+                self.state.update("USB", ("PFGI_TscanAmp", self.PFGITscanner.targetT))
                 if (self.PFGITscanner.top_reached or
                     self.PFGITscanner.bottom_reached):
                     submatrix_to_process = self.PFGITscanner.lastsubmatrix
@@ -331,7 +330,7 @@ class MainWindow(Base, Form):
 
     def start_PFGIT_scan(self, val, wait_time=5000):
         if val:
-            self.setPFGI_TscanAmp.emit(self.PFGITscanner.bot)
+            self.state.update("USB", ("PFGI_TscanAmp", self.PFGITscanner.bot))
             self.conttimer = QtCore.QTimer()
             self.conttimer.setSingleShot(True)
             self.conttimer.setInterval(wait_time)
@@ -503,9 +502,17 @@ def connect_update(obj):
         obj.__dict__[checkable].toggled.connect(
                     lambda checked, name=checkable: obj.updated.emit((name, checked)))
 
+class Updateable:
+    def update_state(self, diff):
+        self.blockSignals(True)
+        if diff[0] in self.valueables:
+            self.__dict__[diff[0]].setValue(diff[1])
+        if diff[0] in self.checkables:
+            self.__dict__[diff[0]].setChecked(diff[1])
+        self.blockSignals(False)
 
 BaseUSB, FormUSB = uic.loadUiType("botdrmainwindow.ui")
-class USBWidget(BaseUSB, FormUSB):
+class USBWidget(BaseUSB, FormUSB, Updateable):
     updated = QtCore.pyqtSignal(tuple)
 
     valueables = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3",
@@ -539,7 +546,7 @@ import pickle
 
 
 DragomBase, DragonForm = uic.loadUiType("dragon.ui")
-class DragonWidget(DragomBase, DragonForm):
+class DragonWidget(DragomBase, DragonForm, Updateable):
     updated = QtCore.pyqtSignal(tuple)
 
     valueables = ["ch1amp", "ch1shift", "ch1count", "ch2amp",
@@ -554,7 +561,7 @@ class DragonWidget(DragomBase, DragonForm):
 
 
 ScannerBase, ScannerForm = uic.loadUiType("timescanner.ui")
-class ScannerWidget(ScannerBase, ScannerForm):
+class ScannerWidget(ScannerBase, ScannerForm, Updateable):
     dtChanged = QtCore.pyqtSignal(float)
     updated = QtCore.pyqtSignal(tuple)
     valueables = ["top", "bottom", "averageNumber", "nsteps"]
@@ -576,7 +583,7 @@ class ScannerWidget(ScannerBase, ScannerForm):
 
 
 CorrectorBase, CorrectorForm = uic.loadUiType("distancecorrector.ui")
-class CorrectorWidget(CorrectorBase, CorrectorForm):
+class CorrectorWidget(CorrectorBase, CorrectorForm, Updateable):
     updated = QtCore.pyqtSignal(tuple)
     valueables = ["channel", "distance", "A"]
     checkables = ["enabled"]
