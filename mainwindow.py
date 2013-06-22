@@ -47,7 +47,7 @@ class MainWindow(Base, Form):
         self.nonthermo = uic.loadUi("nonthermo.ui")
         self.otherWidget = uic.loadUi("other.ui")
         self.scannerSelect = uic.loadUi("scannerselect.ui")
-        self.zone = uic.loadUi("zone.ui")
+        self.zone = SecondaryWidget(settings["Secondary"])
         self.usbWidget = USBWidget(settings["USB"])
         self.pcieWidget = DragonWidget(settings["PCIE"])
         self.correctorWidget = CorrectorWidget(settings["DistanceCorrector"])
@@ -112,7 +112,7 @@ class MainWindow(Base, Form):
         self.memoryupdater = MemoryUpdater(self)
         self.correlator = Correlator(self)
         self.maximizer = Maximizer(self)
-        self.secondary = secondary.Model()
+        self.secondary = secondary.Model(settings["Secondary"])
         if is_interactive:
             self.interaction = interaction.Model()
         self.corraverager = Averager(self)
@@ -424,32 +424,24 @@ class MainWindow(Base, Form):
     def connectSecondary(self):
         self.corraverager.measured.connect(lambda x: self.secondary(x[0]))
         self.secondary.measured.connect(self.processSecondary)
-        self.zone.start.setValue(self.secondary.startChannel)
-        self.zone.length.setValue(self.secondary.length)
-        for i in range(4):
-            widget = getattr(self.zone, 'dec%d' % i)
-            widget.setValue(self.secondary.decays[i])
-        for i in range(3):
-            widget = getattr(self.zone, 'lev%d' % i)
-            widget.setValue(self.secondary.levels[i])
-
-        self.zone.start.valueChanged.connect(self.secondary.set_start)
-        self.zone.length.valueChanged.connect(self.secondary.set_length)
-        self.zone.dec0.valueChanged.connect(
-            lambda val: self.secondary.set_decay(0, val))
-        self.zone.dec1.valueChanged.connect(
-            lambda val: self.secondary.set_decay(1, val))
-        self.zone.dec2.valueChanged.connect(
-            lambda val: self.secondary.set_decay(2, val))
-        self.zone.dec3.valueChanged.connect(
-            lambda val: self.secondary.set_decay(3, val))
-        self.zone.lev0.valueChanged.connect(
-            lambda val: self.secondary.set_level(0, val))
-        self.zone.lev1.valueChanged.connect(
-            lambda val: self.secondary.set_level(1, val))
-        self.zone.lev2.valueChanged.connect(
-            lambda val: self.secondary.set_level(2, val))
-
+#
+#        self.zone.start.valueChanged.connect(self.secondary.set_start)
+#        self.zone.length.valueChanged.connect(self.secondary.set_length)
+#        self.zone.dec0.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(0, val))
+#        self.zone.dec1.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(1, val))
+#        self.zone.dec2.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(2, val))
+#        self.zone.dec3.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(3, val))
+#        self.zone.lev0.valueChanged.connect(
+#            lambda val: self.secondary.set_level(0, val))
+#        self.zone.lev1.valueChanged.connect(
+#            lambda val: self.secondary.set_level(1, val))
+#        self.zone.lev2.valueChanged.connect(
+#            lambda val: self.secondary.set_level(2, val))
+#
     def connectCorrectorWidget(self):
         self.correctorWidget.A.valueChanged.connect(self.corrector.setA)
         self.correctorWidget.channel.valueChanged.connect(self.corrector.setChannel)
@@ -590,6 +582,18 @@ class CorrectorWidget(CorrectorBase, CorrectorForm, Updateable):
     checkables = ["enabled"]
     def __init__(self, state, parent=None):
         super(CorrectorBase, self).__init__(parent)
+        self.setupUi(self)
+        setstate(self, state)
+        connect_update(self)
+
+ZoneBase, ZoneForm = uic.loadUiType("zone.ui")
+class SecondaryWidget(ZoneBase, ZoneForm, Updateable):
+    updated = QtCore.pyqtSignal(tuple)
+    valueables = (['start', 'length'] + ['decay{}'.format(i) for i in range(4)] +
+                  ['level{}'.format(i) for i in range(3)])
+    checkables = []
+    def __init__(self, state, parent=None):
+        super(ZoneBase, self).__init__(parent)
         self.setupUi(self)
         setstate(self, state)
         connect_update(self)

@@ -135,7 +135,8 @@ def recieveupdates(state, wnd):
                    PCIE=wnd.pcieWidget,
                    DistanceCorrector=wnd.correctorWidget,
                    TimeScanner=wnd.scannerWidget,
-                   DIL_TScanner=wnd.DILTScannerWidget)
+                   DIL_TScanner=wnd.DILTScannerWidget,
+                   Secondary=wnd.zone)
     for section in state.settings:
         widgets[section].updated.connect(
             lambda diff, name=section: state.update(name, diff))
@@ -159,6 +160,7 @@ def main(test):
     wnd = MainWindow(state)
 
     recieveupdates(state, wnd)
+    state.subscribe("Secondary", wnd.secondary.update)
     for section in state.settings.keys():
         state.subscribe(section, 
                         lambda diff, sect=section: updateconfig(config, sect, diff))

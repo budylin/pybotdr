@@ -73,28 +73,28 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
-          <widget class="QDoubleSpinBox" name="dec0">
+          <widget class="QDoubleSpinBox" name="decay0">
            <property name="maximum">
             <double>1000000.000000000000000</double>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="dec1">
+          <widget class="QDoubleSpinBox" name="decay1">
            <property name="maximum">
             <double>1000000.000000000000000</double>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="dec2">
+          <widget class="QDoubleSpinBox" name="decay2">
            <property name="maximum">
             <double>1000000.000000000000000</double>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="dec3">
+          <widget class="QDoubleSpinBox" name="decay3">
            <property name="maximum">
             <double>1000000.000000000000000</double>
            </property>
@@ -110,13 +110,13 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
-          <widget class="QDoubleSpinBox" name="lev0"/>
+          <widget class="QDoubleSpinBox" name="level0"/>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="lev1"/>
+          <widget class="QDoubleSpinBox" name="level1"/>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="lev2"/>
+          <widget class="QDoubleSpinBox" name="level2"/>
          </item>
         </layout>
        </widget>
@@ -129,13 +129,13 @@
  <tabstops>
   <tabstop>start</tabstop>
   <tabstop>length</tabstop>
-  <tabstop>dec0</tabstop>
-  <tabstop>dec1</tabstop>
-  <tabstop>dec2</tabstop>
-  <tabstop>dec3</tabstop>
-  <tabstop>lev0</tabstop>
-  <tabstop>lev1</tabstop>
-  <tabstop>lev2</tabstop>
+  <tabstop>decay0</tabstop>
+  <tabstop>decay1</tabstop>
+  <tabstop>decay2</tabstop>
+  <tabstop>decay3</tabstop>
+  <tabstop>level0</tabstop>
+  <tabstop>level1</tabstop>
+  <tabstop>level2</tabstop>
  </tabstops>
  <resources/>
  <connections/>

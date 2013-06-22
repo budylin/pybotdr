@@ -1,25 +1,16 @@
 import pysecondary
-import shelve
 from PyQt4 import QtCore
-
-def load(shelve, key, default=0):
-    try:
-        val = shelve[key]
-    except KeyError:
-        val = default
-        shelve[key] = val
-        shelve.sync()
-    return val
 
 class Model(QtCore.QThread):
     measured = QtCore.pyqtSignal()
-    def __init__(self):
+    def __init__(self, state):
         QtCore.QThread.__init__(self)
-        self.saved = shelve.open("secondary.db", writeback=True)
-        self.startChannel = load(self.saved, 'start')
-        self.length = load(self.saved, 'length')
-        self.decays = load(self.saved, 'decays', [1.] * 4)
-        self.levels = load(self.saved, 'levels', [4., 6., 9.])
+        self.startChannel = state['start']
+        self.length = state['length']
+        decnames = ["decay{}".format(i) for i in range(4)]
+        self.decays = [state[name] for name in decnames]
+        levnames = ["level{}".format(i) for i in range(3)]
+        self.levels = [state[name] for name in levnames]
         self.process = pysecondary.Secondary()
 
     def __call__(self, data):
@@ -36,29 +27,28 @@ class Model(QtCore.QThread):
         print 'Emitting secondary.measured'
         self.measured.emit()
 
+    def update(self, diff):
+        if diff[0] in ['length', 'start']:
+            getattr(self, 'set_' + diff[0])(diff[1])
+        elif 'decay' in diff[0]:
+            getattr(self, 'set_decay')(int(diff[0][-1]), diff[1])
+        elif 'level' in diff[0]:
+            getattr(self, 'set_level')(int(diff[0][-1]), diff[1])
+        else:
+            raise AttributeError("Model has no {} attribute".format(diff[0]))
+
     @property
     def diffs(self):
         return self.process.diffs
 
-    def __del__(self):
-        self.saved.close()
-
     def set_length(self, val):
         self.length = val
-        self.saved['length'] = val
-        self.saved.sync()
 
     def set_start(self, val):
         self.startChannel = val
-        self.saved['start'] = val
-        self.saved.sync()
 
     def set_decay(self, index, val):
         self.decays[index] = val
-        self.saved['decays'][index] = val
-        self.saved.sync()
 
     def set_level(self, index, val):
         self.levels[index] = val
-        self.saved['levels'][index] = val
-        self.saved.sync()
