@@ -3,14 +3,14 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 import numpy as np
 
-ext_modules = [Extension("pysecondary",
-                         ["secondary.pyx"],
+ext_modules = [Extension("pyinteraction",
+                         ["interaction.pyx"],
                          library_dirs=['./'],
-                         libraries=['secondary'],
-                         runtime_library_dirs=['./'])]
+                         libraries=['interaction'],
+                         runtime_library_dirs=['./', '../bril/lib'])]
 
 setup(
-    name = 'pysecondary',
+    name = 'pyinteraction',
     cmdclass = {'build_ext': build_ext},
     include_dirs = [np.get_include()],
     ext_modules = ext_modules)

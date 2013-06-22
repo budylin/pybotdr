@@ -1,13 +1,18 @@
 FREAKING_COMPILE_QT_FLAGS = -pipe -g -Wall -W -O2 -D_REENTRANT  -DQT_NO_DEBUG -DQT_THREAD_SUPPORT -DQT_SHARED -DQT_TABLET_SUPPORT -I/usr/share/qt3/mkspecs/default -I. -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/qt3
 BSENSOR = -L./bsensor/btest
 
+INCLUDE := -I../../bril/include
+INCLUDE += `pkg-config --cflags glib-2.0`
+LIBS    := -L../../bril/lib -lbril
+RUNTIME := -Wl,-R../../bril/lib
+
 all: pyinteraction.so libinteraction.so
 
 interaction.o: interaction.cpp interaction.h
-	g++  -std=c++0x -O2  -g -fpic -c -Wall interaction.cpp
+	g++  -std=c++0x -O2  $(INCLUDE) -g -fpic -c -Wall interaction.cpp
 
 libinteraction.so: interaction.o 
-	g++  -std=c++0x -O2  -g -shared -o libinteraction.so -fpic interaction.o 
+	g++  -std=c++0x -O2  -g -shared -o libinteraction.so -fpic interaction.o $(LIBS) $(RUNTIME)
  
 pyinteraction.so: libinteraction.so interaction.h interaction_setup.py interaction.pyx
 	CC=gcc python interaction_setup.py build_ext --inplace

@@ -22,6 +22,7 @@ cdef class Secondary:
     cdef int window_width
     cdef np.ndarray result
     cdef readonly np.ndarray diffs
+    cdef readonly np.ndarray results
     cdef np.ndarray status
     cdef char *result_p
     cdef double *diffs_p
@@ -51,13 +52,13 @@ cdef class Secondary:
             self.window_width = window_width
             self.decs = decs[:]
             self.levs = levs[:]
-            self.result = np.zeros(12 * n_channel, dtype=CHAR)
-            self.diffs = np.zeros((4, n_channel), dtype=FLOAT) 
-            self.result_p = <char *>self.result.data
+            self.results = np.zeros((12, n_channel), dtype=CHAR)
+            self.diffs = np.zeros((4, n_channel), dtype=FLOAT)
+            self.result_p = <char *>self.results.data
             self.diffs_p = <FLOAT_t *>(self.diffs.data)
         with nogil:
             process(self.context, <FLOAT_t *>data.data,
-                    self.result_p, self.diffs_p)    
+                    self.result_p, self.diffs_p)
         return self.result
 
     def __dealloc__(self):

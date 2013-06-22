@@ -17,8 +17,9 @@ import sys
 try:
     import interaction
     is_interactive = True
-except ImportError:
+except ImportError as e:
     print "Failed to establish interaction with data-server"
+    print e
     is_interactive = False
 
 
@@ -418,7 +419,7 @@ class MainWindow(Base, Form):
             diff = self.secondary.diffs[i] - (i - 1.5) * 20
             self.diffsPlot.myplot(diff, n=i)
         if is_interactive:
-            self.interaction(self.secondary.out)
+            self.interaction(self.secondary.process.results)
 
     def connectSecondary(self):
         self.corraverager.measured.connect(lambda x: self.secondary(x[0]))

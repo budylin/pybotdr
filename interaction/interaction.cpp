@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "interaction.h"
-#include "./bsensor/btest/bsensor.h"
-#include "./bsensor/btest/DDUtils.h"
+#include "../../bril/include/bsensor.h"
+#include "../../bril/include/DDUtils.h"
 
 #define FILTERSCOUNT 12
 #define DECAYSCOUNT 4
@@ -20,7 +20,7 @@ void *context_t::sensor = NULL;
 void *
 create_context(unsigned n_channel)
 {
-
+    int i;
     printf("Creating interaction context\n");
     context_t *context;
     context = new context_t;
@@ -54,7 +54,7 @@ process(void *context, char *res)
         {
             z = j + k * DECAYSCOUNT;
             std::transform(res + ctx->n_channel * z,
-                ctx->n_channel * (z + 1),
+                res + ctx->n_channel * (z + 1),
                 record->filtersData[z],
                 [&](char x) -> char { return x; });
         }
