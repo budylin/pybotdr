@@ -139,13 +139,17 @@ class MainWindow(Base, Form):
         state.subscribe("USB",
             lambda diff: None if diff[0] != "DIL_T" else self.corrector.setReaction(diff[1]))
 
+
+
         self.temperatureplot.t0 = lambda v:self.temperatureplot.myplot(v, 0)
         self.temperatureplot.t1 = lambda v:self.temperatureplot.myplot(v, 1)
 
         self.collector.temperatureCurveChanged.connect(self.temperatureplot.t0)
         self.collector.temperatureCurve2Changed.connect(self.temperatureplot.t1)
 
+
         self.collector.setReflectogrammLength(state.settings["PCIE"]["framelength"])
+
 
         self.status = "waiting"
         self.start = time.time()
@@ -176,11 +180,13 @@ class MainWindow(Base, Form):
         self.correlator.setDt(1.)
         self.correlator.measured.connect(self.distanceplot.myplot)
 
+
         self.scannerWidget.averageNumber.valueChanged.connect(self.corraverager.setNumber)
 
         self.distanceplot.d2 = lambda t: self.distanceplot.myplot(t, n=3)
         self.distanceplot.d3 = lambda t: self.distanceplot.myplot(t, n=4)
         self.corraverager.measured.connect(self.distanceplot.d2)
+
 
         self.pcieWidget.framelength.valueChanged.connect(self.collector.setReflectogrammLength)
 
@@ -418,6 +424,29 @@ class MainWindow(Base, Form):
     def connectSecondary(self):
         self.corraverager.measured.connect(lambda x: self.secondary(x[0]))
         self.secondary.measured.connect(self.processSecondary)
+#
+#        self.zone.start.valueChanged.connect(self.secondary.set_start)
+#        self.zone.length.valueChanged.connect(self.secondary.set_length)
+#        self.zone.dec0.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(0, val))
+#        self.zone.dec1.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(1, val))
+#        self.zone.dec2.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(2, val))
+#        self.zone.dec3.valueChanged.connect(
+#            lambda val: self.secondary.set_decay(3, val))
+#        self.zone.lev0.valueChanged.connect(
+#            lambda val: self.secondary.set_level(0, val))
+#        self.zone.lev1.valueChanged.connect(
+#            lambda val: self.secondary.set_level(1, val))
+#        self.zone.lev2.valueChanged.connect(
+#            lambda val: self.secondary.set_level(2, val))
+#
+    def connectCorrectorWidget(self):
+        self.correctorWidget.A.valueChanged.connect(self.corrector.setA)
+        self.correctorWidget.channel.valueChanged.connect(self.corrector.setChannel)
+        self.correctorWidget.enabled.toggled.connect(self.corrector.setEnabled)
+        self.correctorWidget.distance.valueChanged.connect(self.corrector.setTargetDistance)
 
     def connectScanerWidget(self):
         self.scannerWidget.top.valueChanged.connect(self.PFGITscanner.setTop)
@@ -429,6 +458,9 @@ class MainWindow(Base, Form):
         self.DILTScannerWidget.bottom.valueChanged.connect(self.DIL_Tscanner.setBottom)
         self.DILTScannerWidget.nsteps.valueChanged.connect(self.DIL_Tscanner.setNdot)
         self.DILTScannerWidget.accurateScan.clicked.connect(self.start_DILT_scan)
+
+
+
 
     def connectOtherWidget(self):
         self.otherWidget.plotChannel.valueChanged.connect(self.spectraplot.setChannel)
@@ -500,6 +532,10 @@ class USBWidget(BaseUSB, FormUSB, Updateable):
         self.label_f2.setText(str(response.F2))
         self.label_f3.setText(str(response.F3))
         self.label_19.setText("{0:.2f}".format(response.temp_C))
+
+import pickle
+
+
 
 
 DragomBase, DragonForm = uic.loadUiType("dragon.ui")
