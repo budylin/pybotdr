@@ -35,9 +35,11 @@ class Correlator(QtCore.QThread):
         self.lastres = None
         self.dt = 1
         self.argmax = pycorrmax.Argmax()
+        self.result = None
 
     def process_submatrix(self, index):
         self.findDistByIndex(index) # must be 0
+        return self.result
 
     def setDt(self, dt):
         self.dt = dt
@@ -45,6 +47,7 @@ class Correlator(QtCore.QThread):
     def findDistByIndex(self, fIndex):
         self.dataIndex = fIndex
         self.start()
+        self.wait()
 
     def update(self):
         pass
@@ -58,6 +61,7 @@ class Correlator(QtCore.QThread):
         preres = -np.array(res) # HACK to correspond other methods
 #        self.submatrix_processed.emit(preres)
         self.measured.emit(preres)
+        self.result = preres
 #        res = preres[:]
 #
 #        if self.num == 0:

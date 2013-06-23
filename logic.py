@@ -1,6 +1,11 @@
 import numpy as np
 import time
 
+def check_spectra_sanity(submatrix):
+    print "Sanity check is always true"
+    return True
+
+
 def check_stability(times, temps, targets, stab_time, maxdev=10):
     if not len(times) or max(times) - min(times) < stab_time:
         return False

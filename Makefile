@@ -18,3 +18,6 @@ libinteraction.so:
 
 pyinteraction.so:
 	cd interaction; make pyinteraction.so; cd ..; ln -sf interaction/pyinteraction.so pyinteraction.so 
+
+clean:
+	rm *.so

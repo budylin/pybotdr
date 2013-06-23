@@ -152,7 +152,7 @@ def main(test):
     config.optionxform = str
     parsedfiles = config.read(configfiles)
     print parsedfiles, config.sections()
-    
+
     groups = config.sections()
     settings = dict([(section, convert(config.items(section))) for section in config.sections()])
     state = UpdateNotifier(settings)
@@ -162,7 +162,7 @@ def main(test):
     recieveupdates(state, wnd)
     state.subscribe("Secondary", wnd.secondary.update)
     for section in state.settings.keys():
-        state.subscribe(section, 
+        state.subscribe(section,
                         lambda diff, sect=section: updateconfig(config, sect, diff))
 
 #    wnd.usbWidget.updated.connect(myprint)

@@ -116,8 +116,6 @@ class MainWindow(Base, Form):
         if is_interactive:
             self.interaction = interaction.Model()
         self.corraverager = Averager(self)
-        self.connectSecondary()
-        self.correlator.measured.connect(self.corraverager.appendDistances)
         self.corraverager.setNumber(settings["TimeScanner"]["averageNumber"])
 
         self.connectScanerWidget()
@@ -218,81 +216,101 @@ class MainWindow(Base, Form):
         else:
             self.status = "waiting"
 
+
+    def on_wait(self, data):
+        t, T1, T2 = self.collector.get_actual_temperature(2 * EXT_STAB_TIME)
+        targets = [self.state.settings["USB"]["T1set"],
+                   self.state.settings["USB"]["T2set"]]
+        if logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
+            self.status = "searching"
+            self.state.update("PCIE", ("framecount", 60))
+            print "Searching"
+            middle = (self.state.settings["TimeScanner"]["top"] +
+                      self.state.settings["TimeScanner"]["bottom"]) / 2
+            self.state.update("USB", ("PFGI_TscanAmp", middle))
+            setter = lambda x: self.state.update("USB", ("DIL_T", x))
+            dt = INT_STAB_RATE * SEARCH_STEP / 3
+            logic.init_search(SEARCH_BOT, SEARCH_TOP, SEARCH_STEP,
+                              dt, setter)
+
+    def on_scan(self, pcie_dev_response):
+        self.collector.appendDragonResponse(pcie_dev_response)
+        submatrix_to_process = None
+        if self.laserscanner == "DILT":
+            self.collector.appendOnChipTemperature(
+                self.DIL_Tscanner.scan_position)
+            self.DIL_Tscanner.scan()
+            self.collector.setNextIndex(self.DIL_Tscanner.pos)
+            if self.DIL_Tscanner.top_reached:
+                self.startDownScan.emit()
+            elif self.DIL_Tscanner.bottom_reached:
+                self.startUpScan.emit()
+            if (self.DIL_Tscanner.top_reached or
+                self.DIL_Tscanner.bottom_reached):
+                submatrix_to_process = self.DIL_Tscanner.lastsubmatrix
+        if self.laserscanner == "PFGIT":
+            self.collector.appendOnChipTemperature(
+                self.PFGITscanner.scan_position)
+            self.PFGITscanner.scan()
+            self.collector.setNextIndex(self.PFGITscanner.pos)
+            self.state.update("USB", ("PFGI_TscanAmp", self.PFGITscanner.targetT))
+            if (self.PFGITscanner.top_reached or
+                self.PFGITscanner.bottom_reached):
+                submatrix_to_process = self.PFGITscanner.lastsubmatrix
+        if submatrix_to_process is not None:
+            self.start_processing(submatrix_to_process)
+
+    def start_processing(self, submatrix):
+        if not logic.check_spectra_sanity(submatrix):
+            notify_insane()
+            return
+        primary = self.correlator.process_submatrix(submatrix)
+        self.maximizer.process_submatrix(submatrix)
+        averages = self.corraverager.appendDistances(primary)
+        if averages is not None:
+            self.secondary(averages[0])
+            self.process_secondary()
+            if is_interactive:
+                self.interaction(self.secondary.process.results)
+
+    def on_search(self, data):
+        t, T1, T2 = self.collector.get_actual_temperature(2 * EXT_STAB_TIME)
+        targets = [self.state.settings["USB"]["T1set"],
+                   self.state.settings["USB"]["T2set"]]
+        if not logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
+            return
+        new_range = logic.search(data)
+        if new_range is None:
+            return
+        print "New search range", new_range
+        bot, top = new_range
+        if top - bot > 10:
+            setter = lambda x: self.state.update("USB", ("DIL_T", x))
+            step = max(1,
+                       SEARCH_STEP * (bot - top) / (SEARCH_BOT - SEARCH_TOP))
+            dt = INT_STAB_RATE * step
+            logic.init_search(bot, top, step, dt, setter)
+        else:
+            mid = int((bot + top) / 2)
+            self.state.update("USB", ("DIL_T", mid))
+            self.state.update("PCIE", ("framecount", 600))
+            print "Setting DIL_T to %d" % mid
+            self.start_PFGIT_scan(True, 25000)
+            self.scannerWidget.accurateScan.blockSignals(True)
+            self.scannerWidget.accurateScan.setChecked(True)
+            self.scannerWidget.accurateScan.blockSignals(False)
+            self.status = "preparing_scan"
+
     def on_new_reflectogramm(self, pcie_dev_response):
         data = pcie_dev_response.data
         data = data[:pcie_dev_response.framelength]
         self.dragonplot.myplot(data)
         if self.status == "waiting":
-            t, T1, T2 = self.collector.get_actual_temperature(2 * EXT_STAB_TIME)
-            targets = [self.state.settings["USB"]["T1set"],
-                       self.state.settings["USB"]["T2set"]]
-            if logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
-                self.status = "searching"
-                self.state.update("PCIE", ("framecount", 60))
-                print "Searching"
-                middle = (self.state.settings["TimeScanner"]["top"] +
-                          self.state.settings["TimeScanner"]["bottom"]) / 2
-                self.state.update("USB", ("PFGI_TscanAmp", middle))
-                setter = lambda x: self.state.update("USB", ("DIL_T", x))
-                dt = INT_STAB_RATE * SEARCH_STEP / 3
-                logic.init_search(SEARCH_BOT, SEARCH_TOP, SEARCH_STEP,
-                                  dt, setter)
-
+            self.on_wait(data)
         elif self.status == "searching":
-            t, T1, T2 = self.collector.get_actual_temperature(2 * EXT_STAB_TIME)
-            targets = [self.state.settings["USB"]["T1set"],
-                       self.state.settings["USB"]["T2set"]]
-            if not logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
-                return
-            new_range = logic.search(data)
-            if new_range is None:
-                return
-            print "New search range", new_range
-            bot, top = new_range
-            if top - bot > 10:
-                setter = lambda x: self.state.update("USB", ("DIL_T", x))
-                step = max(1,
-                           SEARCH_STEP * (bot - top) / (SEARCH_BOT - SEARCH_TOP))
-                dt = INT_STAB_RATE * step
-                logic.init_search(bot, top, step, dt, setter)
-            else:
-                mid = int((bot + top) / 2)
-                self.state.update("USB", ("DIL_T", mid))
-                self.state.update("PCIE", ("framecount", 600))
-                print "Setting DIL_T to %d" % mid
-                self.start_PFGIT_scan(True, 25000)
-                self.scannerWidget.accurateScan.blockSignals(True)
-                self.scannerWidget.accurateScan.setChecked(True)
-                self.scannerWidget.accurateScan.blockSignals(False)
-                self.status = "preparing_scan"
-
+            self.on_search(data)
         elif self.status == "scanning":
-            self.collector.appendDragonResponse(pcie_dev_response)
-            submatrix_to_process = None
-            if self.laserscanner == "DILT":
-                self.collector.appendOnChipTemperature(
-                    self.DIL_Tscanner.scan_position)
-                self.DIL_Tscanner.scan()
-                self.collector.setNextIndex(self.DIL_Tscanner.pos)
-                if self.DIL_Tscanner.top_reached:
-                    self.startDownScan.emit()
-                elif self.DIL_Tscanner.bottom_reached:
-                    self.startUpScan.emit()
-                if (self.DIL_Tscanner.top_reached or
-                    self.DIL_Tscanner.bottom_reached):
-                    submatrix_to_process = self.DIL_Tscanner.lastsubmatrix
-            if self.laserscanner == "PFGIT":
-                self.collector.appendOnChipTemperature(
-                    self.PFGITscanner.scan_position)
-                self.PFGITscanner.scan()
-                self.collector.setNextIndex(self.PFGITscanner.pos)
-                self.state.update("USB", ("PFGI_TscanAmp", self.PFGITscanner.targetT))
-                if (self.PFGITscanner.top_reached or
-                    self.PFGITscanner.bottom_reached):
-                    submatrix_to_process = self.PFGITscanner.lastsubmatrix
-            if submatrix_to_process is not None:
-                self.correlator.process_submatrix(submatrix_to_process)
-                self.maximizer.process_submatrix(submatrix_to_process)
+            self.on_scan(pcie_dev_response)
         elif self.status == "idle":
             pass
 
@@ -414,34 +432,16 @@ class MainWindow(Base, Form):
         self.collector.setNextIndex(self.DIL_Tscanner.pos)
         self.startUpScan()
 
-    def processSecondary(self):
+    def process_secondary(self):
         for i in range(4):
             diff = self.secondary.diffs[i] - (i - 1.5) * 20
             self.diffsPlot.myplot(diff, n=i)
-        if is_interactive:
-            self.interaction(self.secondary.process.results)
 
-    def connectSecondary(self):
-        self.corraverager.measured.connect(lambda x: self.secondary(x[0]))
-        self.secondary.measured.connect(self.processSecondary)
-#
-#        self.zone.start.valueChanged.connect(self.secondary.set_start)
-#        self.zone.length.valueChanged.connect(self.secondary.set_length)
-#        self.zone.dec0.valueChanged.connect(
-#            lambda val: self.secondary.set_decay(0, val))
-#        self.zone.dec1.valueChanged.connect(
-#            lambda val: self.secondary.set_decay(1, val))
-#        self.zone.dec2.valueChanged.connect(
-#            lambda val: self.secondary.set_decay(2, val))
-#        self.zone.dec3.valueChanged.connect(
-#            lambda val: self.secondary.set_decay(3, val))
-#        self.zone.lev0.valueChanged.connect(
-#            lambda val: self.secondary.set_level(0, val))
-#        self.zone.lev1.valueChanged.connect(
-#            lambda val: self.secondary.set_level(1, val))
-#        self.zone.lev2.valueChanged.connect(
-#            lambda val: self.secondary.set_level(2, val))
-#
+        print self.secondary.results.shape
+        print self.secondary.results[:,990:1010]
+        print self.secondary.results[:,10990:11010]
+        print np.sum(self.secondary.results, axis=1)
+
     def connectCorrectorWidget(self):
         self.correctorWidget.A.valueChanged.connect(self.corrector.setA)
         self.correctorWidget.channel.valueChanged.connect(self.corrector.setChannel)

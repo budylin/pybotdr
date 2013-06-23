@@ -11,6 +11,7 @@ class Model(QtCore.QThread):
         self.data = data
         print 'Interaction called'
         self.run()
+        self.wait()
 
     def run(self):
         print 'Interaction started'

@@ -17,6 +17,7 @@ class Model(QtCore.QThread):
         self.data = data
         print 'Secondary called'
         self.run()
+        self.wait()
 
     def run(self):
         print 'Secondary started'
@@ -40,6 +41,10 @@ class Model(QtCore.QThread):
     @property
     def diffs(self):
         return self.process.diffs
+
+    @property
+    def results(self):
+        return self.process.results
 
     def set_length(self, val):
         self.length = val
