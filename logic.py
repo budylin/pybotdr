@@ -1,9 +1,16 @@
 import numpy as np
 import time
+from distances import dataFromShared
 
-def check_spectra_sanity(submatrix):
-    print "Sanity check is always true"
-    return True
+# returns list on indexes of insane spectra
+def check_spectra_insanity(submatrix_index, data_reg):
+    submatrix = dataFromShared()[submatrix_index]
+    data = submatrix[0,data_reg[0]:data_reg[1]]
+    noise = submatrix[0,-500:-400]
+    noise_amp = np.max(noise) - np.min(noise)
+    data_amp = np.max(data, axis=1) - np.min(data, axis=1)
+    insane = data_amp < noise_amp * 5 + 1e-7
+    return list(np.arange(len(insane))[insane])
 
 
 def check_stability(times, temps, targets, stab_time, maxdev=10):

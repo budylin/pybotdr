@@ -261,7 +261,14 @@ class MainWindow(Base, Form):
             self.start_processing(submatrix_to_process)
 
     def start_processing(self, submatrix):
-        if not logic.check_spectra_sanity(submatrix):
+        data_reg = [self.state.settings["Secondary"]["start"],
+                    self.state.settings["Secondary"]["length"]]
+        insane_inds = logic.check_spectra_insanity(submatrix, data_reg)
+        if insane_inds:
+            print "Insane channels:", insane_inds
+            if len(insame_inds) == self.state.setting["Secondary"]["length"]:
+                print "All specrta are broken, searching"
+                self.status = "searching"
             notify_insane()
             return
         primary = self.correlator.process_submatrix(submatrix)
