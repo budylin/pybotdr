@@ -128,7 +128,7 @@ class UpdateNotifier(object):
             for subscriber in self.subscribers[group]:
                 subscriber(diff)
         if debugprint:
-            print "Update {} section {}".format(group, diff)
+            print "Update {0} section {1}".format(group, diff)
 
 def recieveupdates(state, wnd):
     widgets = dict(USB=wnd.usbWidget,

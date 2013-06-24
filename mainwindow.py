@@ -362,7 +362,7 @@ class MainWindow(Base, Form):
             self.conttimer.setInterval(wait_time)
             self.conttimer.timeout.connect(self._cont)
             self.conttimer.start()
-            print "wait {} sec..".format(int(wait_time / 1000))
+            print "wait {0} sec..".format(int(wait_time / 1000))
 
         else:
             print "stopping PFGIT scan"
@@ -596,8 +596,8 @@ class CorrectorWidget(CorrectorBase, CorrectorForm, Updateable):
 ZoneBase, ZoneForm = uic.loadUiType("zone.ui")
 class SecondaryWidget(ZoneBase, ZoneForm, Updateable):
     updated = QtCore.pyqtSignal(tuple)
-    valueables = (['start', 'length'] + ['decay{}'.format(i) for i in range(4)] +
-                  ['level{}'.format(i) for i in range(3)])
+    valueables = (['start', 'length'] + ['decay{0}'.format(i) for i in range(4)] +
+                  ['level{0}'.format(i) for i in range(3)])
     checkables = []
     def __init__(self, state, parent=None):
         super(ZoneBase, self).__init__(parent)

@@ -7,9 +7,9 @@ class Model(QtCore.QThread):
         QtCore.QThread.__init__(self)
         self.startChannel = state['start']
         self.length = state['length']
-        decnames = ["decay{}".format(i) for i in range(4)]
+        decnames = ["decay{0}".format(i) for i in range(4)]
         self.decays = [state[name] for name in decnames]
-        levnames = ["level{}".format(i) for i in range(3)]
+        levnames = ["level{0}".format(i) for i in range(3)]
         self.levels = [state[name] for name in levnames]
         self.process = pysecondary.Secondary()
 
@@ -36,7 +36,7 @@ class Model(QtCore.QThread):
         elif 'level' in diff[0]:
             getattr(self, 'set_level')(int(diff[0][-1]), diff[1])
         else:
-            raise AttributeError("Model has no {} attribute".format(diff[0]))
+            raise AttributeError("Model has no {0} attribute".format(diff[0]))
 
     @property
     def diffs(self):
