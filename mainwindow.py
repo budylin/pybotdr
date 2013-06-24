@@ -29,7 +29,7 @@ INT_STAB_RATE = 1. / 100.
 SEARCH_STEP = 100
 SEARCH_TOP = 40000
 SEARCH_BOT = 20000
-
+REF_LEN = 65520
 
 Base, Form = uic.loadUiType("window.ui")
 class MainWindow(Base, Form):
@@ -71,16 +71,16 @@ class MainWindow(Base, Form):
         self.usbWidget.setSizePolicy(sizePolicy)
         self.settings.addWidget(self.usbWidget, 0, 0, 1, 1)
 
-        dragonrect = QtCore.QRectF(0, plots.SIGNAL_BOT, 8*6144,
+        dragonrect = QtCore.QRectF(0, plots.SIGNAL_BOT, REF_LEN,
                                    plots.SIGNAL_TOP - plots.SIGNAL_BOT)
         self.dragonplot = plots.Plot(dragonrect, self)
         self.temperatureplot = plots.TempPlot()
         self.spectraplot = plots.SlicePlot(self)
-        self.distanceplot = plots.Plot(QtCore.QRectF(0, -500, 8*6144, 2*500),
+        self.distanceplot = plots.Plot(QtCore.QRectF(0, -500, REF_LEN, 2*500),
                                        self, zeroed=True, points=True,
                                        lines=True, levels=[0,0,1000,1000],
                                        ncurves=8)
-        self.diffsPlot = plots.Plot(QtCore.QRectF(0, -500, 8*6144, 2*500),
+        self.diffsPlot = plots.Plot(QtCore.QRectF(0, -500, REF_LEN, 2*500),
                                     self, zeroed=False, points=True,
                                     lines=True, levels=[0,0,1000,1000],
                                     ncurves=8)
@@ -266,7 +266,7 @@ class MainWindow(Base, Form):
         insane_inds = logic.check_spectra_insanity(submatrix, data_reg)
         if insane_inds:
             print "Insane channels:", insane_inds
-            if len(insane_inds) == self.state.setting["Secondary"]["length"]:
+            if len(insane_inds) == self.state.settings["Secondary"]["length"]:
                 print "All specrta are broken, searching"
                 self.status = "searching"
             return
