@@ -223,7 +223,7 @@ class MainWindow(Base, Form):
                    self.state.settings["USB"]["T2set"]]
         if logic.check_stability(t, [T1, T2], targets, EXT_STAB_TIME):
             self.status = "searching"
-            self.state.update("PCIE", ("framecount", 60))
+            self.state.update("PCIE", ("framecount", 200))
             print "Searching"
             middle = (self.state.settings["TimeScanner"]["top"] +
                       self.state.settings["TimeScanner"]["bottom"]) / 2
