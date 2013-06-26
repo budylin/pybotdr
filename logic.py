@@ -6,6 +6,7 @@ from distances import dataFromShared
 def check_spectra_insanity(submatrix_index, data_reg):
     submatrix = dataFromShared()[submatrix_index]
     data = submatrix[0,data_reg[0]:data_reg[1]]
+    data[data < -1] = 0
     noise = submatrix[0,-500:-400]
     noise_amp = np.max(noise) - np.min(noise)
     data_amp = np.max(data, axis=1) - np.min(data, axis=1)

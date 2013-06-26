@@ -184,7 +184,7 @@ process(void *context, double *array, char *out, double *diffs)
         {
             ctx->references[j].assign(array + ctx->start,
                                      array + ctx->start + ctx->n_channel);
-            sub_trend(ctx->references[j], ctx->window_width);
+//            sub_trend(ctx->references[j], ctx->window_width);
         }
         ctx->prev.assign(ctx->references[0].begin(), ctx->references[0].end());
     }

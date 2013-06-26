@@ -3,8 +3,8 @@ BSENSOR = -L./bsensor/btest
 
 INCLUDE := -I../../bril/include
 INCLUDE += `pkg-config --cflags glib-2.0`
-LIBS    := -L../../bril/lib -lbril
-RUNTIME := -Wl,-R../../bril/lib
+LIBS    := -lbril
+#RUNTIME := -Wl,-R../../bril/lib
 
 all: pyinteraction.so libinteraction.so
 

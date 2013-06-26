@@ -299,7 +299,7 @@ class MainWindow(Base, Form):
         else:
             mid = int((bot + top) / 2)
             self.state.update("USB", ("DIL_T", mid))
-            self.state.update("PCIE", ("framecount", 600))
+            self.state.update("PCIE", ("framecount", 1000))
             print "Setting DIL_T to %d" % mid
             self.start_PFGIT_scan(True, 25000)
             self.scannerWidget.accurateScan.blockSignals(True)

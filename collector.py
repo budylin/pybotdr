@@ -34,7 +34,7 @@ class Collector(QtCore.QObject):
         self.temperature2 = np.zeros(30000)
         self.nextIndex = (0, 0, 0, 0)
         self.collected = set([])
-        self.inversion = 1
+        self.inversion = -1
         
     def appendDragonResponse(self, response):
         response.data[:response.framelength] -= np.average(response.data[response.framelength-1000:response.framelength])
